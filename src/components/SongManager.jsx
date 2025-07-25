@@ -11,6 +11,8 @@ function SongManager({ genreUpdateKey }) {
 
     // States for song upload form inputs
     const [newSongTitle, setNewSongTitle] = useState('');
+    // --- ADDED ARTIST STATE ---
+    const [newSongArtist, setNewSongArtist] = useState('');
     const [selectedGenreIds, setSelectedGenreIds] = useState([]);
     const [selectedSubGenreIds, setSelectedSubGenreIds] = useState([]);
     const [newSongCollectionType, setNewSongCollectionType] = useState('free');
@@ -172,8 +174,8 @@ function SongManager({ genreUpdateKey }) {
             return;
         }
 
-        if (!newSongTitle.trim() || !newSongDuration.trim() || selectedGenreIds.length === 0 || selectedSubGenreIds.length === 0 || !newSongBPM.trim() || !newSongKey.trim()) {
-            showNotification('Please fill in all required fields (Title, Duration, Genres, Sub-genres, BPM, Key)!', 'error');
+        if (!newSongTitle.trim() || !newSongArtist.trim() || !newSongDuration.trim() || selectedGenreIds.length === 0 || selectedSubGenreIds.length === 0 || !newSongBPM.trim() || !newSongKey.trim()) {
+            showNotification('Please fill in all required fields (Title, Artist, Duration, Genres, Sub-genres, BPM, Key)!', 'error');
             return;
         }
 
@@ -187,19 +189,17 @@ function SongManager({ genreUpdateKey }) {
 
         const formData = new FormData();
         formData.append('title', newSongTitle);
+        formData.append('artist', newSongArtist);
         formData.append('duration', newSongDuration);
         formData.append('collectionType', newSongCollectionType);
         
-        // --- FIX: Send arrays using the correct forEach method ---
-        selectedGenreIds.forEach(id => formData.append('genres', id));
-        selectedSubGenreIds.forEach(id => formData.append('subGenres', id));
+        formData.append('genres', JSON.stringify(selectedGenreIds));
+        formData.append('subGenres', JSON.stringify(selectedSubGenreIds));
         
-        // --- ADD NEW FIELDS ---
         formData.append('bpm', newSongBPM);
         formData.append('key', newSongKey);
         formData.append('hasVocals', newSongHasVocals);
 
-        // --- FIX: Use 'image' and 'audio' as field names to match backend ---
         if (newSongImage) formData.append('image', newSongImage);
         if (newSongAudio) formData.append('audio', newSongAudio);
 
@@ -237,12 +237,12 @@ function SongManager({ genreUpdateKey }) {
         setEditingSongId(song._id);
         setEditingSongOriginalTitle(song.title);
         setNewSongTitle(song.title);
+        setNewSongArtist(song.artist || '');
         setNewSongDuration(song.duration || '');
         setSelectedGenreIds(song.genres ? song.genres.map(g => g._id) : []);
         setSelectedSubGenreIds(song.subGenres ? song.subGenres.map(sg => sg._id) : []);
         setNewSongCollectionType(song.collectionType);
 
-        // --- POPULATE NEW FIELDS ---
         setNewSongBPM(song.bpm || '');
         setNewSongKey(song.key || '');
         setNewSongHasVocals(song.hasVocals || false);
@@ -262,6 +262,7 @@ function SongManager({ genreUpdateKey }) {
         setEditingSongId(null);
         setEditingSongOriginalTitle('');
         setNewSongTitle('');
+        setNewSongArtist('');
         setNewSongDuration('');
         setSelectedGenreIds([]);
         setSelectedSubGenreIds([]);
@@ -271,7 +272,6 @@ function SongManager({ genreUpdateKey }) {
         setClearEditImage(false);
         setClearEditAudio(false);
         
-        // --- RESET NEW FIELDS ---
         setNewSongBPM('');
         setNewSongKey('');
         setNewSongHasVocals(false);
@@ -334,6 +334,11 @@ function SongManager({ genreUpdateKey }) {
                             <label htmlFor="title" style={{ display: 'block', marginBottom: '5px', color: '#bbb' }}>Title:</label>
                             <input type="text" id="title" placeholder="Enter song title" value={newSongTitle} onChange={(e) => setNewSongTitle(e.target.value)} style={{ padding: '8px', width: 'calc(100% - 16px)', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }} required />
                         </div>
+                        {/* --- ADDED ARTIST INPUT --- */}
+                        <div>
+                            <label htmlFor="artist" style={{ display: 'block', marginBottom: '5px', color: '#bbb' }}>Artist:</label>
+                            <input type="text" id="artist" placeholder="Enter artist name" value={newSongArtist} onChange={(e) => setNewSongArtist(e.target.value)} style={{ padding: '8px', width: 'calc(100% - 16px)', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }} required />
+                        </div>
                         <div>
                             <label htmlFor="duration" style={{ display: 'block', marginBottom: '5px', color: '#bbb' }}>Duration (seconds):</label>
                             <input type="number" id="duration" placeholder="e.g., 180" value={newSongDuration} onChange={(e) => setNewSongDuration(e.target.value)} style={{ padding: '8px', width: 'calc(100% - 16px)', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }} required />
@@ -380,12 +385,10 @@ function SongManager({ genreUpdateKey }) {
                     <div>
                         <label htmlFor="newSongImageInput" style={{ display: 'block', marginBottom: '5px', color: '#bbb' }}>Cover Image {editingSongId && '(optional)'}:</label>
                         <input type="file" id="newSongImageInput" accept="image/*" onChange={(e) => setNewSongImage(e.target.files[0])} style={{ padding: '8px', width: 'calc(100% - 16px)', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }} required={!editingSongId} />
-                        {editingSongId && songs.find(s => s._id === editingSongId)?.imageUrl && !newSongImage && (<div style={{ display: 'flex', alignItems: 'center', marginTop: '10px' }}><img src={songs.find(s => s._id === editingSongId).imageUrl} alt="Current Cover" style={imagePreviewStyle} /></div>)}
                     </div>
                     <div>
                         <label htmlFor="newSongAudioInput" style={{ display: 'block', marginBottom: '5px', color: '#bbb' }}>Audio File {editingSongId && '(optional)'}:</label>
                         <input type="file" id="newSongAudioInput" accept="audio/*" onChange={(e) => setNewSongAudio(e.target.files[0])} style={{ padding: '8px', width: 'calc(100% - 16px)', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }} required={!editingSongId} />
-                        {editingSongId && songs.find(s => s._id === editingSongId)?.audioUrl && !newSongAudio && (<div style={{ display: 'flex', alignItems: 'center', marginTop: '10px' }}><audio controls src={songs.find(s => s._id === editingSongId).audioUrl} style={{ width: '100%' }}>Your browser does not support audio.</audio></div>)}
                     </div>
 
                     <button type="submit" disabled={uploading} style={{ padding: '10px 20px', backgroundColor: uploading ? '#888' : '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: uploading ? 'not-allowed' : 'pointer', marginTop: '15px' }}>
@@ -422,6 +425,7 @@ function SongManager({ genreUpdateKey }) {
                             </td>
                             <td style={tableCellStyle}>
                                 <div style={{ fontWeight: 'bold', color: 'white' }}>{song.title}</div>
+                                <div style={{ fontSize: '0.9em', color: '#bbb' }}>by {song.artist}</div>
                                 <div style={{ fontSize: '0.9em', color: '#bbb' }}>Duration: {song.duration}s</div>
                                 <div style={{ fontSize: '0.9em', color: '#bbb' }}>Collection: {song.collectionType}</div>
                             </td>
