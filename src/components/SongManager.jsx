@@ -316,6 +316,8 @@ function SongManager({ genreUpdateKey }) {
     const deleteButtonStyle = { ...buttonStyle, backgroundColor: '#dc3545', color: 'white' };
     const tableHeaderStyle = { backgroundColor: '#333', padding: '10px', textAlign: 'left', color: '#fff' };
     const tableCellStyle = { padding: '10px', verticalAlign: 'top' };
+    // --- FIX: ADDED MISSING STYLE DEFINITION ---
+    const genreSubGenreTagStyle = { display: 'inline-flex', alignItems: 'center', backgroundColor: '#555', padding: '5px 10px', borderRadius: '5px', fontSize: '0.85em', color: '#eee', marginRight: '8px', marginBottom: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' };
     
     if (loading) return <div style={{ padding: '20px', border: '1px solid #ccc', margin: '20px', borderRadius: '8px', backgroundColor: '#333', color: '#eee' }}>Loading song data...</div>;
     if (error) return <div style={{ padding: '20px', border: '1px solid #ccc', margin: '20px', borderRadius: '8px', backgroundColor: '#333', color: '#eee' }}>Error: {error}</div>;
