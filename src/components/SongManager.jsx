@@ -11,7 +11,6 @@ function SongManager({ genreUpdateKey }) {
 
     // States for song upload form inputs
     const [newSongTitle, setNewSongTitle] = useState('');
-    // --- ADDED ARTIST STATE ---
     const [newSongArtist, setNewSongArtist] = useState('');
     const [selectedGenreIds, setSelectedGenreIds] = useState([]);
     const [selectedSubGenreIds, setSelectedSubGenreIds] = useState([]);
@@ -20,7 +19,6 @@ function SongManager({ genreUpdateKey }) {
     const [newSongAudio, setNewSongAudio] = useState(null);
     const [uploading, setUploading] = useState(false);
 
-    // --- NEW STATE VARIABLES FOR BPM, KEY, VOCALS, AND DURATION ---
     const [newSongBPM, setNewSongBPM] = useState('');
     const [newSongKey, setNewSongKey] = useState('');
     const [newSongHasVocals, setNewSongHasVocals] = useState(false);
@@ -51,7 +49,7 @@ function SongManager({ genreUpdateKey }) {
         }, 4000);
     };
 
-    // --- API FETCHING FUNCTIONS (Unchanged from your code) ---
+    // --- API FETCHING FUNCTIONS ---
     const fetchSongs = useCallback(async () => {
         if (!adminToken) {
             setError('Authentication token missing. Please log in.');
@@ -79,47 +77,31 @@ function SongManager({ genreUpdateKey }) {
     }, [adminToken]);
 
     const fetchAllGenres = useCallback(async () => {
-        if (!adminToken) {
-            setError('Authentication token missing. Please log in.');
-            return;
-        }
+        if (!adminToken) return;
         try {
             const response = await fetch(`${API_BASE_URL}/api/genres`, {
-                headers: {
-                    'Authorization': `Bearer ${adminToken}`,
-                },
+                headers: { 'Authorization': `Bearer ${adminToken}` },
             });
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             setAllGenres(data);
         } catch (err) {
-            console.error("Failed to fetch genres for song manager:", err);
-            setError(`Failed to fetch genres: ${err.message}`);
+            console.error("Failed to fetch genres:", err);
             showNotification(`Error fetching genres: ${err.message}`, 'error');
         }
     }, [adminToken]);
 
     const fetchAllSubGenres = useCallback(async () => {
-        if (!adminToken) {
-            setError('Authentication token missing. Please log in.');
-            return;
-        }
+        if (!adminToken) return;
         try {
             const response = await fetch(`${API_BASE_URL}/api/subgenres`, {
-                headers: {
-                    'Authorization': `Bearer ${adminToken}`,
-                },
+                headers: { 'Authorization': `Bearer ${adminToken}` },
             });
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             setAllSubGenres(data);
         } catch (err) {
-            console.error("Failed to fetch sub-genres for song manager:", err);
-            setError(`Failed to fetch sub-genres: ${err.message}`);
+            console.error("Failed to fetch sub-genres:", err);
             showNotification(`Error fetching sub-genres: ${err.message}`, 'error');
         }
     }, [adminToken]);
@@ -140,11 +122,10 @@ function SongManager({ genreUpdateKey }) {
                 setLoading(false);
             }
         };
-
         loadInitialData();
     }, [genreUpdateKey, adminToken, fetchSongs, fetchAllGenres, fetchAllSubGenres]);
 
-    // --- Filtering and Sorting Logic (Unchanged from your code) ---
+    // --- Filtering and Sorting Logic ---
     const filteredGenres = allGenres.filter(genre =>
         genre.name.toLowerCase().includes(genreSearchTerm.toLowerCase())
     );
@@ -165,20 +146,17 @@ function SongManager({ genreUpdateKey }) {
             return b._id.localeCompare(a._id);
         });
 
-    // --- CORRECTED Event Handler for Song Upload/Update ---
+    // --- Event Handlers ---
     const handleAddSong = async (e) => {
         e.preventDefault();
-
         if (!adminToken) {
             showNotification('Authentication token missing. Please log in.', 'error');
             return;
         }
-
-        if (!newSongTitle.trim() || !newSongArtist.trim() || !newSongDuration.trim() || selectedGenreIds.length === 0 || selectedSubGenreIds.length === 0 || !newSongBPM.trim() || !newSongKey.trim()) {
-            showNotification('Please fill in all required fields (Title, Artist, Duration, Genres, Sub-genres, BPM, Key)!', 'error');
+        if (!newSongTitle.trim() || !newSongArtist.trim() || !newSongDuration.trim() || selectedGenreIds.length === 0 || !newSongBPM.trim() || !newSongKey.trim()) {
+            showNotification('Please fill in all required fields!', 'error');
             return;
         }
-
         if (!editingSongId && (!newSongImage || !newSongAudio)) {
             showNotification('Both image and audio files are required for new songs!', 'error');
             return;
@@ -192,10 +170,8 @@ function SongManager({ genreUpdateKey }) {
         formData.append('artist', newSongArtist);
         formData.append('duration', newSongDuration);
         formData.append('collectionType', newSongCollectionType);
-        
         formData.append('genres', JSON.stringify(selectedGenreIds));
         formData.append('subGenres', JSON.stringify(selectedSubGenreIds));
-        
         formData.append('bpm', newSongBPM);
         formData.append('key', newSongKey);
         formData.append('hasVocals', newSongHasVocals);
@@ -206,33 +182,27 @@ function SongManager({ genreUpdateKey }) {
         try {
             const method = editingSongId ? 'PUT' : 'POST';
             const url = editingSongId ? `${API_BASE_URL}/api/songs/${editingSongId}` : `${API_BASE_URL}/api/songs`;
-
             const response = await fetch(url, {
-                method: method,
+                method,
                 headers: { 'Authorization': `Bearer ${adminToken}` },
                 body: formData,
             });
-
             const data = await response.json();
             if (!response.ok) {
                 const errorMsg = data.message || (data.errors && data.errors[0].msg) || `HTTP error! status: ${response.status}`;
                 throw new Error(errorMsg);
             }
-
-            handleCancelEdit(); // Reset form
+            handleCancelEdit();
             await fetchSongs();
             showNotification(`Song ${editingSongId ? 'updated' : 'uploaded'} successfully!`, 'success');
-
         } catch (err) {
             console.error(`Failed to ${editingSongId ? 'update' : 'upload'} song:`, err);
-            setError(`Error ${editingSongId ? 'updating' : 'uploading'} song: ${err.message}`);
             showNotification(`Error: ${err.message}`, 'error');
         } finally {
             setUploading(false);
         }
     };
 
-    // --- CORRECTED Edit and Cancel Handlers ---
     const handleEditClick = (song) => {
         setEditingSongId(song._id);
         setEditingSongOriginalTitle(song.title);
@@ -242,15 +212,11 @@ function SongManager({ genreUpdateKey }) {
         setSelectedGenreIds(song.genres ? song.genres.map(g => g._id) : []);
         setSelectedSubGenreIds(song.subGenres ? song.subGenres.map(sg => sg._id) : []);
         setNewSongCollectionType(song.collectionType);
-
         setNewSongBPM(song.bpm || '');
         setNewSongKey(song.key || '');
         setNewSongHasVocals(song.hasVocals || false);
-
         setNewSongImage(null);
         setNewSongAudio(null);
-        setClearEditImage(false);
-        setClearEditAudio(false);
         
         const imageInput = document.getElementById('newSongImageInput');
         if (imageInput) imageInput.value = '';
@@ -269,9 +235,6 @@ function SongManager({ genreUpdateKey }) {
         setNewSongCollectionType('free');
         setNewSongImage(null);
         setNewSongAudio(null);
-        setClearEditImage(false);
-        setClearEditAudio(false);
-        
         setNewSongBPM('');
         setNewSongKey('');
         setNewSongHasVocals(false);
@@ -282,45 +245,34 @@ function SongManager({ genreUpdateKey }) {
         if (audioInput) audioInput.value = '';
     };
 
-    // --- Delete Handler (Unchanged from your code) ---
     const handleDeleteSong = async (id, title) => {
-        if (!adminToken) {
-            showNotification('Authentication token missing. Please log in.', 'error');
-            return;
-        }
-        if (!window.confirm(`Are you sure you want to delete the song "${title}"? This action cannot be undone.`)) {
-            return;
-        }
-
+        if (!adminToken || !window.confirm(`Are you sure you want to delete "${title}"?`)) return;
         try {
             const response = await fetch(`${API_BASE_URL}/api/songs/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${adminToken}` },
             });
             const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || `HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(data.error || `HTTP error! status: ${response.status}`);
             showNotification('Song deleted successfully!', 'success');
             await fetchSongs();
         } catch (err) {
             console.error("Failed to delete song:", err);
-            setError(`Error deleting song: ${err.message}`);
             showNotification(`Error deleting song: ${err.message}`, 'error');
         }
     };
 
-    // --- RENDER LOGIC (Inline styles preserved from your code) ---
+    // --- RENDER LOGIC ---
+    // --- FIX: MOVED STYLE DEFINITIONS HERE, BEFORE THEY ARE USED ---
     const buttonStyle = { padding: '10px 15px', borderRadius: '5px', border: 'none', cursor: 'pointer', fontSize: '14px', margin: '0 5px', transition: 'background-color 0.2s ease', opacity: uploading ? 0.7 : 1 };
     const editButtonStyle = { ...buttonStyle, backgroundColor: '#ffc107', color: '#333' };
     const deleteButtonStyle = { ...buttonStyle, backgroundColor: '#dc3545', color: 'white' };
     const tableHeaderStyle = { backgroundColor: '#333', padding: '10px', textAlign: 'left', color: '#fff' };
     const tableCellStyle = { padding: '10px', verticalAlign: 'top' };
-    // --- FIX: ADDED MISSING STYLE DEFINITION ---
     const genreSubGenreTagStyle = { display: 'inline-flex', alignItems: 'center', backgroundColor: '#555', padding: '5px 10px', borderRadius: '5px', fontSize: '0.85em', color: '#eee', marginRight: '8px', marginBottom: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' };
-    
-    if (loading) return <div style={{ padding: '20px', border: '1px solid #ccc', margin: '20px', borderRadius: '8px', backgroundColor: '#333', color: '#eee' }}>Loading song data...</div>;
-    if (error) return <div style={{ padding: '20px', border: '1px solid #ccc', margin: '20px', borderRadius: '8px', backgroundColor: '#333', color: '#eee' }}>Error: {error}</div>;
+
+    if (loading) return <div style={{ padding: '20px', color: '#eee' }}>Loading song data...</div>;
+    if (error) return <div style={{ padding: '20px', color: '#dc3545' }}>Error: {error}</div>;
 
     return (
         <div style={{ padding: '20px' }}>
@@ -330,13 +282,11 @@ function SongManager({ genreUpdateKey }) {
             <div style={{ marginBottom: '30px', padding: '20px', backgroundColor: '#333', borderRadius: '10px' }}>
                 <h3 style={{ color: '#eee', marginBottom: '15px' }}>{editingSongId ? `Edit Song: ${editingSongOriginalTitle}` : 'Upload New Song:'}</h3>
                 <form onSubmit={handleAddSong} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
                         <div>
                             <label htmlFor="title" style={{ display: 'block', marginBottom: '5px', color: '#bbb' }}>Title:</label>
                             <input type="text" id="title" placeholder="Enter song title" value={newSongTitle} onChange={(e) => setNewSongTitle(e.target.value)} style={{ padding: '8px', width: 'calc(100% - 16px)', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }} required />
                         </div>
-                        {/* --- ADDED ARTIST INPUT --- */}
                         <div>
                             <label htmlFor="artist" style={{ display: 'block', marginBottom: '5px', color: '#bbb' }}>Artist:</label>
                             <input type="text" id="artist" placeholder="Enter artist name" value={newSongArtist} onChange={(e) => setNewSongArtist(e.target.value)} style={{ padding: '8px', width: 'calc(100% - 16px)', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }} required />
@@ -346,7 +296,7 @@ function SongManager({ genreUpdateKey }) {
                             <input type="number" id="duration" placeholder="e.g., 180" value={newSongDuration} onChange={(e) => setNewSongDuration(e.target.value)} style={{ padding: '8px', width: 'calc(100% - 16px)', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }} required />
                         </div>
                         <div>
-                            <label htmlFor="bpm" style={{ display: 'block', marginBottom: '5px', color: '#bbb' }}>BPM (Beats Per Minute):</label>
+                            <label htmlFor="bpm" style={{ display: 'block', marginBottom: '5px', color: '#bbb' }}>BPM:</label>
                             <input type="number" id="bpm" placeholder="e.g., 120" value={newSongBPM} onChange={(e) => setNewSongBPM(e.target.value)} style={{ padding: '8px', width: 'calc(100% - 16px)', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }} required />
                         </div>
                         <div>
@@ -354,15 +304,12 @@ function SongManager({ genreUpdateKey }) {
                             <input type="text" id="key" placeholder="e.g., C Major" value={newSongKey} onChange={(e) => setNewSongKey(e.target.value)} style={{ padding: '8px', width: 'calc(100% - 16px)', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }} required />
                         </div>
                     </div>
-                    
                     <div>
                         <label style={{ display: 'flex', alignItems: 'center', color: 'white', padding: '8px', backgroundColor: '#555', border: '1px solid #666', borderRadius: '4px', marginTop: '5px' }}>
                             <input type="checkbox" checked={newSongHasVocals} onChange={(e) => setNewSongHasVocals(e.target.checked)} style={{ marginRight: '10px', height: '18px', width: '18px' }} />
                             This song contains vocals
                         </label>
                     </div>
-
-                    {/* Genres, Sub-genres, and other inputs (Unchanged from your code) */}
                     <div>
                         <label style={{ display: 'block', marginBottom: '5px', color: '#bbb' }}>Genres (Select multiple):</label>
                         <input type="text" placeholder="Search genres..." value={genreSearchTerm} onChange={(e) => setGenreSearchTerm(e.target.value)} style={{ padding: '8px', width: 'calc(100% - 16px)', marginBottom: '10px', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }} />
@@ -380,8 +327,8 @@ function SongManager({ genreUpdateKey }) {
                     <div>
                         <label style={{ display: 'block', marginBottom: '5px', color: '#bbb' }}>Collection Type:</label>
                         <div style={{ display: 'flex', gap: '15px' }}>
-                            <label style={{ color: '#bbb' }}><input type="radio" name="collectionType" value="free" checked={newSongCollectionType === 'free'} onChange={(e) => setNewSongCollectionType(e.target.value)} style={{ marginRight: '5px' }} /> Collection Free (Requires Signup)</label>
-                            <label style={{ color: '#bbb' }}><input type="radio" name="collectionType" value="paid" checked={newSongCollectionType === 'paid'} onChange={(e) => setNewSongCollectionType(e.target.value)} style={{ marginRight: '5px' }} /> Collection Paid (Monthly Subscription)</label>
+                            <label style={{ color: '#bbb' }}><input type="radio" name="collectionType" value="free" checked={newSongCollectionType === 'free'} onChange={(e) => setNewSongCollectionType(e.target.value)} style={{ marginRight: '5px' }} /> Free</label>
+                            <label style={{ color: '#bbb' }}><input type="radio" name="collectionType" value="paid" checked={newSongCollectionType === 'paid'} onChange={(e) => setNewSongCollectionType(e.target.value)} style={{ marginRight: '5px' }} /> Paid</label>
                         </div>
                     </div>
                     <div>
@@ -392,7 +339,6 @@ function SongManager({ genreUpdateKey }) {
                         <label htmlFor="newSongAudioInput" style={{ display: 'block', marginBottom: '5px', color: '#bbb' }}>Audio File {editingSongId && '(optional)'}:</label>
                         <input type="file" id="newSongAudioInput" accept="audio/*" onChange={(e) => setNewSongAudio(e.target.files[0])} style={{ padding: '8px', width: 'calc(100% - 16px)', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }} required={!editingSongId} />
                     </div>
-
                     <button type="submit" disabled={uploading} style={{ padding: '10px 20px', backgroundColor: uploading ? '#888' : '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: uploading ? 'not-allowed' : 'pointer', marginTop: '15px' }}>
                         {uploading ? (editingSongId ? 'Updating...' : 'Adding...') : (editingSongId ? 'Update Song' : 'Upload Song')}
                     </button>
