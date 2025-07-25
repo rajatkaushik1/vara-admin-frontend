@@ -18,7 +18,7 @@ function SongManager({ genreUpdateKey }) {
     const [newSongAudio, setNewSongAudio] = useState(null);
     const [uploading, setUploading] = useState(false);
 
-    // --- NEW STATE VARIABLES FOR BPM, KEY, VOCALS ---
+    // --- NEW STATE VARIABLES FOR BPM, KEY, VOCALS, AND DURATION ---
     const [newSongBPM, setNewSongBPM] = useState('');
     const [newSongKey, setNewSongKey] = useState('');
     const [newSongHasVocals, setNewSongHasVocals] = useState(false);
@@ -190,9 +190,9 @@ function SongManager({ genreUpdateKey }) {
         formData.append('duration', newSongDuration);
         formData.append('collectionType', newSongCollectionType);
         
-        // --- FIX: Send arrays as JSON strings, as expected by the backend ---
-        formData.append('genres', JSON.stringify(selectedGenreIds));
-        formData.append('subGenres', JSON.stringify(selectedSubGenreIds));
+        // --- FIX: Send arrays using the correct forEach method ---
+        selectedGenreIds.forEach(id => formData.append('genres', id));
+        selectedSubGenreIds.forEach(id => formData.append('subGenres', id));
         
         // --- ADD NEW FIELDS ---
         formData.append('bpm', newSongBPM);
@@ -316,8 +316,6 @@ function SongManager({ genreUpdateKey }) {
     const deleteButtonStyle = { ...buttonStyle, backgroundColor: '#dc3545', color: 'white' };
     const tableHeaderStyle = { backgroundColor: '#333', padding: '10px', textAlign: 'left', color: '#fff' };
     const tableCellStyle = { padding: '10px', verticalAlign: 'top' };
-    const imagePreviewStyle = { width: '100px', height: '100px', objectFit: 'cover', borderRadius: '5px', marginRight: '10px' };
-    const genreSubGenreTagStyle = { display: 'inline-flex', alignItems: 'center', backgroundColor: '#555', padding: '5px 10px', borderRadius: '5px', fontSize: '0.85em', color: '#eee', marginRight: '8px', marginBottom: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' };
     
     if (loading) return <div style={{ padding: '20px', border: '1px solid #ccc', margin: '20px', borderRadius: '8px', backgroundColor: '#333', color: '#eee' }}>Loading song data...</div>;
     if (error) return <div style={{ padding: '20px', border: '1px solid #ccc', margin: '20px', borderRadius: '8px', backgroundColor: '#333', color: '#eee' }}>Error: {error}</div>;
@@ -406,33 +404,46 @@ function SongManager({ genreUpdateKey }) {
                 </select>
             </div>
             
-            <ul style={{ listStyle: 'none', padding: 0 }}>
-                {displayedSongs.map(song => (
-                    <li key={song._id} style={{ marginBottom: '15px', padding: '15px', background: '#444', borderRadius: '8px', display: 'flex', alignItems: 'flex-start', gap: '15px' }}>
-                        <img src={song.imageUrl} alt={song.title} style={{ width: '100px', height: '100px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/100x100/000/FFF?text=No+Image'; }} />
-                        <div style={{ flexGrow: 1 }}>
-                            <h4 style={{ margin: '0', color: 'white', fontSize: '1.1em' }}>{song.title} <span style={{ fontSize: '0.9em', color: '#bbb' }}>(Collection {song.collectionType})</span></h4>
-                            
-                            <div style={{ margin: '8px 0 5px 0', fontSize: '0.9em', color: '#bbb' }}>
-                                <strong>BPM:</strong> {song.bpm || 'N/A'} | <strong>Key:</strong> {song.key || 'N/A'} | <strong>Vocals:</strong> {song.hasVocals ? 'Yes' : 'No'}
-                            </div>
-
-                            <div style={{ margin: '8px 0 5px 0', fontSize: '0.9em', color: '#bbb' }}>
-                                <strong>Genres:</strong> {song.genres && song.genres.length > 0 ? song.genres.map(g => g.name).join(', ') : 'N/A'}
-                            </div>
-                            <div style={{ margin: '5px 0 8px 0', fontSize: '0.9em', color: '#bbb' }}>
-                                <strong>Sub-genres:</strong> {song.subGenres && song.subGenres.length > 0 ? song.subGenres.map(sg => sg.name).join(', ') : 'N/A'}
-                            </div>
-                            <audio controls src={song.audioUrl} style={{ width: '100%', marginTop: '10px' }}>Your browser does not support the audio element.</audio>
-                            <span style={{ fontSize: '0.8em', color: '#777', display: 'block', marginTop: '5px' }}>ID: {song._id}</span>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginLeft: '20px', flexShrink: 0 }}>
-                            <button onClick={() => handleEditClick(song)} style={editButtonStyle}>Edit Song</button>
-                            <button onClick={() => handleDeleteSong(song._id, song.title)} style={deleteButtonStyle}>Delete Song</button>
-                        </div>
-                    </li>
-                ))}
-            </ul>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                    <tr>
+                        <th style={tableHeaderStyle}>Cover</th>
+                        <th style={tableHeaderStyle}>Details</th>
+                        <th style={tableHeaderStyle}>Metadata</th>
+                        <th style={tableHeaderStyle}>Genres</th>
+                        <th style={tableHeaderStyle}>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {displayedSongs.map(song => (
+                        <tr key={song._id} style={{ borderBottom: '1px solid #444' }}>
+                            <td style={tableCellStyle}>
+                                <img src={song.imageUrl} alt={song.title} style={{ width: '60px', height: '60px', borderRadius: '4px', objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/60x60/000/FFF?text=N/A'; }} />
+                            </td>
+                            <td style={tableCellStyle}>
+                                <div style={{ fontWeight: 'bold', color: 'white' }}>{song.title}</div>
+                                <div style={{ fontSize: '0.9em', color: '#bbb' }}>Duration: {song.duration}s</div>
+                                <div style={{ fontSize: '0.9em', color: '#bbb' }}>Collection: {song.collectionType}</div>
+                            </td>
+                            <td style={tableCellStyle}>
+                                <div style={{ fontSize: '0.9em', color: '#bbb' }}><strong>BPM:</strong> {song.bpm || 'N/A'}</div>
+                                <div style={{ fontSize: '0.9em', color: '#bbb' }}><strong>Key:</strong> {song.key || 'N/A'}</div>
+                                <div style={{ fontSize: '0.9em', color: '#bbb' }}><strong>Vocals:</strong> {song.hasVocals ? 'Yes' : 'No'}</div>
+                            </td>
+                            <td style={tableCellStyle}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                                    {song.genres.map(g => <span key={g._id} style={{ ...genreSubGenreTagStyle, backgroundColor: '#e74c3c' }}>{g.name}</span>)}
+                                    {song.subGenres.map(sg => <span key={sg._id} style={{ ...genreSubGenreTagStyle, backgroundColor: '#3498db' }}>{sg.name}</span>)}
+                                </div>
+                            </td>
+                            <td style={tableCellStyle}>
+                                <button onClick={() => handleEditClick(song)} style={editButtonStyle}>Edit</button>
+                                <button onClick={() => handleDeleteSong(song._id, song.title)} style={deleteButtonStyle}>Delete</button>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     );
 }
