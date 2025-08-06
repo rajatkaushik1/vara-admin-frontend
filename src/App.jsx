@@ -1,8 +1,9 @@
-    import React, { useState } from 'react';
+import React, { useState } from 'react';
     import LoginPage from './LoginPage';
     import GenreManager from './components/GenreManager';
     import SubGenreManager from './components/SubGenreManager';
     import SongManager from './components/SongManager';
+    import AnalyticsManager from './components/AnalyticsManager';
     import './App.css'; // Import App-specific styles
 
     function App() {
@@ -57,6 +58,12 @@
               >
                 Manage Songs
               </button>
+              <button
+                className={activeTab === 'analytics' ? 'active' : ''}
+                onClick={() => setActiveTab('analytics')}
+              >
+                📊 Analytics Dashboard
+              </button>
             </nav>
             <button onClick={handleLogout} className="logout-button">
               Logout
@@ -67,10 +74,10 @@
             {activeTab === 'genres' && <GenreManager onGenreAdded={handleGenreDataChange} />}
             {activeTab === 'subgenres' && <SubGenreManager genreUpdateKey={genreUpdateKey} />}
             {activeTab === 'songs' && <SongManager genreUpdateKey={genreUpdateKey} />}
+            {activeTab === 'analytics' && <AnalyticsManager />}
           </main>
         </div>
       );
     }
 
     export default App;
-    
