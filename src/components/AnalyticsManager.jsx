@@ -14,6 +14,7 @@ const AnalyticsManager = () => {
     const [lastRefresh, setLastRefresh] = useState(new Date()); // NEW: Track last refresh
 
     const adminToken = localStorage.getItem('adminToken'); // 1) Add adminToken
+    const [songLoading, setSongLoading] = useState(false); // 1) Add songLoading
 
     // Fetch analytics data
     const fetchAnalytics = async () => {
@@ -69,7 +70,7 @@ const AnalyticsManager = () => {
 
     // Fetch song details
     const fetchSongDetails = async (songId) => {
-        setLoading(true);
+        setSongLoading(true); // 3) Use songLoading instead of global loading
         try {
             const response = await fetch(
                 ANALYTICS_ENDPOINTS.getSongAnalytics(songId, timeFilter), // 3) Use timeFilter
@@ -92,7 +93,7 @@ const AnalyticsManager = () => {
         } catch (err) {
             setError(err.message);
         } finally {
-            setLoading(false);
+            setSongLoading(false); // 3) Use songLoading
         }
     };
 
@@ -118,14 +119,14 @@ const AnalyticsManager = () => {
         setLastRefresh(new Date());
     };
 
-    // 4) Load data immediately on mount and when timeFilter changes
+    // 4) Load analytics + platform stats immediately on mount and when timeFilter changes
     useEffect(() => {
         fetchAnalytics();
         fetchPlatformStats();
         setLastRefresh(new Date());
     }, [timeFilter]);
 
-    // 5) Fetch song details when selectedSong changes
+    // 5) Fetch song details when selectedSong or timeFilter changes
     useEffect(() => {
         if (selectedSong) {
             fetchSongDetails(selectedSong);
@@ -151,7 +152,7 @@ const AnalyticsManager = () => {
             alert('Weekly counters reset successfully!');
             fetchAnalytics();
             fetchPlatformStats();
-            setLastRefresh(new Date()); // 6) Refresh after reset
+            setLastRefresh(new Date()); // 7) Update lastRefresh after reset
         } catch (err) {
             alert('Failed to reset counters');
             console.error('Reset error:', err);
@@ -365,7 +366,7 @@ const AnalyticsManager = () => {
                                             </td>
                                             <td>
                                                 <button 
-                                                    onClick={() => setSelectedSong(song._id)}
+                                                    onClick={() => { setSongDetails(null); setSelectedSong(song._id); }} // 5) Clear details and set selectedSong
                                                     className="view-details-btn"
                                                 >
                                                     View Details
@@ -380,34 +381,38 @@ const AnalyticsManager = () => {
                 )}
             </div>
 
-            {selectedSong && songDetails && (
+            {/* 6) Modal opens instantly and shows loading indicator */}
+            {selectedSong && (
                 <div className="modal-overlay" onClick={() => setSelectedSong(null)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2>{songDetails.song.title}</h2>
+                            <h2>{songDetails?.song?.title || 'Loading...'}</h2>
                             <button onClick={() => setSelectedSong(null)} className="close-btn">×</button>
                         </div>
-                        
                         <div className="modal-body">
-                            <div className="song-details-grid">
-                                <div className="detail-section">
-                                    <h3>Basic Info</h3>
-                                    <p><strong>Artist:</strong> {songDetails.song.artist}</p>
-                                    <p><strong>Duration:</strong> {formatTime(songDetails.song.duration)}</p>
-                                    <p><strong>Collection:</strong> {songDetails.song.collectionType}</p>
-                                    <p><strong>Genres:</strong> {songDetails.song.genres?.map(g => g.name).join(', ')}</p>
+                            {songLoading || !songDetails ? (
+                                <div className="analytics-loading">Loading song details...</div>
+                            ) : (
+                                <div className="song-details-grid">
+                                    <div className="detail-section">
+                                        <h3>Basic Info</h3>
+                                        <p><strong>Artist:</strong> {songDetails.song.artist}</p>
+                                        <p><strong>Duration:</strong> {formatTime(songDetails.song.duration)}</p>
+                                        <p><strong>Collection:</strong> {songDetails.song.collectionType}</p>
+                                        <p><strong>Genres:</strong> {songDetails.song.genres?.map(g => g.name).join(', ')}</p>
+                                    </div>
+                                    
+                                    <div className="detail-section">
+                                        <h3>Analytics Summary</h3>
+                                        <p><strong>Total Plays:</strong> {songDetails.song.analytics.totalPlays}</p>
+                                        <p><strong>Total Downloads:</strong> {songDetails.song.analytics.totalDownloads}</p>
+                                        <p><strong>Total Favorites:</strong> {songDetails.song.analytics.totalFavorites}</p>
+                                        <p><strong>Total Playtime:</strong> {formatHours(songDetails.song.analytics.totalPlaytimeHours)}</p>
+                                        <p><strong>Trending Score:</strong> {Math.round(songDetails.song.analytics.trendingScore || 0)}</p>
+                                        <p><strong>Avg Completion:</strong> {Math.round(songDetails.avgCompletionRate || 0)}%</p>
+                                    </div>
                                 </div>
-                                
-                                <div className="detail-section">
-                                    <h3>Analytics Summary</h3>
-                                    <p><strong>Total Plays:</strong> {songDetails.song.analytics.totalPlays}</p>
-                                    <p><strong>Total Downloads:</strong> {songDetails.song.analytics.totalDownloads}</p>
-                                    <p><strong>Total Favorites:</strong> {songDetails.song.analytics.totalFavorites}</p>
-                                    <p><strong>Total Playtime:</strong> {formatHours(songDetails.song.analytics.totalPlaytimeHours)}</p>
-                                    <p><strong>Trending Score:</strong> {Math.round(songDetails.song.analytics.trendingScore || 0)}</p>
-                                    <p><strong>Avg Completion:</strong> {Math.round(songDetails.avgCompletionRate || 0)}%</p>
-                                </div>
-                            </div>
+                            )}
 
                             {songDetails.popularTimestamps && songDetails.popularTimestamps.length > 0 && (
                                 <div className="detail-section">
