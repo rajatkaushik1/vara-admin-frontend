@@ -13,8 +13,8 @@ const AnalyticsManager = () => {
     const [autoRefresh, setAutoRefresh] = useState(true); // NEW: Auto-refresh toggle
     const [lastRefresh, setLastRefresh] = useState(new Date()); // NEW: Track last refresh
 
-    const adminToken = localStorage.getItem('adminToken'); // 1) Add adminToken
-    const [songLoading, setSongLoading] = useState(false); // 1) Add songLoading
+    const adminToken = localStorage.getItem('adminToken');   // 1) Ensure adminToken present
+    const [songLoading, setSongLoading] = useState(false);   // 1) Ensure songLoading present
 
     // Fetch analytics data
     const fetchAnalytics = async () => {
@@ -366,7 +366,7 @@ const AnalyticsManager = () => {
                                             </td>
                                             <td>
                                                 <button 
-                                                    onClick={() => { setSongDetails(null); setSelectedSong(song._id); }} // 5) Clear details and set selectedSong
+                                                    onClick={() => { setSongDetails(null); setSelectedSong(song._id); }} // 2) Clear details before selecting
                                                     className="view-details-btn"
                                                 >
                                                     View Details
@@ -383,70 +383,71 @@ const AnalyticsManager = () => {
 
             {/* 6) Modal opens instantly and shows loading indicator */}
             {selectedSong && (
-                <div className="modal-overlay" onClick={() => setSelectedSong(null)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>{songDetails?.song?.title || 'Loading...'}</h2>
-                            <button onClick={() => setSelectedSong(null)} className="close-btn">×</button>
-                        </div>
-                        <div className="modal-body">
-                            {songLoading || !songDetails ? (
-                                <div className="analytics-loading">Loading song details...</div>
-                            ) : (
-                                <div className="song-details-grid">
-                                    <div className="detail-section">
-                                        <h3>Basic Info</h3>
-                                        <p><strong>Artist:</strong> {songDetails.song.artist}</p>
-                                        <p><strong>Duration:</strong> {formatTime(songDetails.song.duration)}</p>
-                                        <p><strong>Collection:</strong> {songDetails.song.collectionType}</p>
-                                        <p><strong>Genres:</strong> {songDetails.song.genres?.map(g => g.name).join(', ')}</p>
-                                    </div>
-                                    
-                                    <div className="detail-section">
-                                        <h3>Analytics Summary</h3>
-                                        <p><strong>Total Plays:</strong> {songDetails.song.analytics.totalPlays}</p>
-                                        <p><strong>Total Downloads:</strong> {songDetails.song.analytics.totalDownloads}</p>
-                                        <p><strong>Total Favorites:</strong> {songDetails.song.analytics.totalFavorites}</p>
-                                        <p><strong>Total Playtime:</strong> {formatHours(songDetails.song.analytics.totalPlaytimeHours)}</p>
-                                        <p><strong>Trending Score:</strong> {Math.round(songDetails.song.analytics.trendingScore || 0)}</p>
-                                        <p><strong>Avg Completion:</strong> {Math.round(songDetails.avgCompletionRate || 0)}%</p>
-                                    </div>
-                                </div>
-                            )}
+              <div className="modal-overlay" onClick={() => setSelectedSong(null)}>
+                <div className="modal-content" onClick={e => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <h2>{songDetails?.song?.title || 'Loading...'}</h2>
+                    <button onClick={() => setSelectedSong(null)} className="close-btn">×</button>
+                  </div>
 
-                            {songDetails.popularTimestamps && songDetails.popularTimestamps.length > 0 && (
-                                <div className="detail-section">
-                                    <h3>Most Popular Timestamps</h3>
-                                    <div className="timestamps-list">
-                                        {songDetails.popularTimestamps.slice(0, 10).map((timestamp, index) => (
-                                            <div key={index} className="timestamp-item">
-                                                <span className="time">{formatTime(timestamp.avgPosition)}</span>
-                                                <span className="count">{timestamp.count} seeks</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                  <div className="modal-body">
+                    {songLoading || !songDetails ? (
+                      <div className="analytics-loading">Loading song details...</div>
+                    ) : (
+                      <>
+                        <div className="song-details-grid">
+                          <div className="detail-section">
+                            <h3>Basic Info</h3>
+                            <p><strong>Artist:</strong> {songDetails.song?.artist || '—'}</p>
+                            <p><strong>Duration:</strong> {formatTime(songDetails.song?.duration)}</p>
+                            <p><strong>Collection:</strong> {songDetails.song?.collectionType || '—'}</p>
+                            <p><strong>Genres:</strong> {(songDetails.song?.genres || []).map(g => g.name).join(', ')}</p>
+                          </div>
 
-                            {songDetails.recentInteractions && (
-                                <div className="detail-section">
-                                    <h3>Recent Activity</h3>
-                                    <div className="activity-list">
-                                        {songDetails.recentInteractions.slice(0, 20).map((interaction, index) => (
-                                            <div key={index} className="activity-item">
-                                                <span className="action">{interaction.interactionType}</span>
-                                                <span className="user">{interaction.userEmail || 'Anonymous'}</span>
-                                                <span className="time">
-                                                    {new Date(interaction.timestamp).toLocaleString()}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                          <div className="detail-section">
+                            <h3>Analytics Summary</h3>
+                            <p><strong>Total Plays:</strong> {songDetails.song?.analytics?.totalPlays ?? 0}</p>
+                            <p><strong>Total Downloads:</strong> {songDetails.song?.analytics?.totalDownloads ?? 0}</p>
+                            <p><strong>Total Favorites:</strong> {songDetails.song?.analytics?.totalFavorites ?? 0}</p>
+                            <p><strong>Total Playtime:</strong> {formatHours(songDetails.song?.analytics?.totalPlaytimeHours)}</p>
+                            <p><strong>Trending Score:</strong> {Math.round(songDetails.song?.analytics?.trendingScore || 0)}</p>
+                            <p><strong>Avg Completion:</strong> {Math.round(songDetails.avgCompletionRate || 0)}%</p>
+                          </div>
                         </div>
-                    </div>
+
+                        {Array.isArray(songDetails.popularTimestamps) && songDetails.popularTimestamps.length > 0 && (
+                          <div className="detail-section">
+                            <h3>Most Popular Timestamps</h3>
+                            <div className="timestamps-list">
+                              {(songDetails.popularTimestamps || []).slice(0, 10).map((timestamp, index) => (
+                                <div key={index} className="timestamp-item">
+                                  <span className="time">{formatTime(timestamp.avgPosition)}</span>
+                                  <span className="count">{timestamp.count} seeks</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {Array.isArray(songDetails.recentInteractions) && songDetails.recentInteractions.length > 0 && (
+                          <div className="detail-section">
+                            <h3>Recent Activity</h3>
+                            <div className="activity-list">
+                              {(songDetails.recentInteractions || []).slice(0, 20).map((interaction, index) => (
+                                <div key={index} className="activity-item">
+                                  <span className="action">{interaction.interactionType}</span>
+                                  <span className="user">{interaction.userEmail || 'Anonymous'}</span>
+                                  <span className="time">{new Date(interaction.timestamp).toLocaleString()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
+              </div>
             )}
         </div>
     );
