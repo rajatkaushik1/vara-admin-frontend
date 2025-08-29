@@ -13,9 +13,6 @@ const AnalyticsManager = () => {
     const [autoRefresh, setAutoRefresh] = useState(true); // NEW: Auto-refresh toggle
     const [lastRefresh, setLastRefresh] = useState(new Date()); // NEW: Track last refresh
 
-    const adminToken = localStorage.getItem('adminToken');   // 1) Ensure adminToken present
-    const [songLoading, setSongLoading] = useState(false);   // 1) Ensure songLoading present
-
     // Fetch analytics data
     const fetchAnalytics = async () => {
         setLoading(true);
@@ -24,7 +21,6 @@ const AnalyticsManager = () => {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) // 2) Add Authorization
                 },
             });
 
@@ -50,7 +46,6 @@ const AnalyticsManager = () => {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) // 2) Add Authorization
                 },
             });
 
@@ -70,18 +65,14 @@ const AnalyticsManager = () => {
 
     // Fetch song details
     const fetchSongDetails = async (songId) => {
-        setSongLoading(true); // 3) Use songLoading instead of global loading
+        setLoading(true);
         try {
-            const response = await fetch(
-                ANALYTICS_ENDPOINTS.getSongAnalytics(songId, timeFilter), // 3) Use timeFilter
-                {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) // 2) Add Authorization
-                    },
-                }
-            );
+            const response = await fetch(ANALYTICS_ENDPOINTS.getSongAnalytics(songId), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
 
             if (!response.ok) {
                 throw new Error('Failed to fetch song details');
@@ -93,7 +84,7 @@ const AnalyticsManager = () => {
         } catch (err) {
             setError(err.message);
         } finally {
-            setSongLoading(false); // 3) Use songLoading
+            setLoading(false);
         }
     };
 
@@ -119,20 +110,6 @@ const AnalyticsManager = () => {
         setLastRefresh(new Date());
     };
 
-    // 4) Load analytics + platform stats immediately on mount and when timeFilter changes
-    useEffect(() => {
-        fetchAnalytics();
-        fetchPlatformStats();
-        setLastRefresh(new Date());
-    }, [timeFilter]);
-
-    // 5) Fetch song details when selectedSong or timeFilter changes
-    useEffect(() => {
-        if (selectedSong) {
-            fetchSongDetails(selectedSong);
-        }
-    }, [selectedSong, timeFilter]);
-
     // Reset weekly counters (admin action)
     const resetWeeklyCounters = async () => {
         if (!confirm('Are you sure you want to reset all weekly counters? This will affect trending calculations.')) {
@@ -141,18 +118,13 @@ const AnalyticsManager = () => {
 
         try {
             const response = await fetch(ANALYTICS_ENDPOINTS.resetWeeklyCounters(), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) // 2) Add Authorization
-                }
+                method: 'POST'
             });
             if (!response.ok) throw new Error('Failed to reset counters');
             
             alert('Weekly counters reset successfully!');
             fetchAnalytics();
             fetchPlatformStats();
-            setLastRefresh(new Date()); // 7) Update lastRefresh after reset
         } catch (err) {
             alert('Failed to reset counters');
             console.error('Reset error:', err);
@@ -366,7 +338,7 @@ const AnalyticsManager = () => {
                                             </td>
                                             <td>
                                                 <button 
-                                                    onClick={() => { setSongDetails(null); setSelectedSong(song._id); }} // 2) Clear details before selecting
+                                                    onClick={() => setSelectedSong(song._id)}
                                                     className="view-details-btn"
                                                 >
                                                     View Details
@@ -381,73 +353,68 @@ const AnalyticsManager = () => {
                 )}
             </div>
 
-            {/* 6) Modal opens instantly and shows loading indicator */}
-            {selectedSong && (
-              <div className="modal-overlay" onClick={() => setSelectedSong(null)}>
-                <div className="modal-content" onClick={e => e.stopPropagation()}>
-                  <div className="modal-header">
-                    <h2>{songDetails?.song?.title || 'Loading...'}</h2>
-                    <button onClick={() => setSelectedSong(null)} className="close-btn">×</button>
-                  </div>
-
-                  <div className="modal-body">
-                    {songLoading || !songDetails ? (
-                      <div className="analytics-loading">Loading song details...</div>
-                    ) : (
-                      <>
-                        <div className="song-details-grid">
-                          <div className="detail-section">
-                            <h3>Basic Info</h3>
-                            <p><strong>Artist:</strong> {songDetails.song?.artist || '—'}</p>
-                            <p><strong>Duration:</strong> {formatTime(songDetails.song?.duration)}</p>
-                            <p><strong>Collection:</strong> {songDetails.song?.collectionType || '—'}</p>
-                            <p><strong>Genres:</strong> {(songDetails.song?.genres || []).map(g => g.name).join(', ')}</p>
-                          </div>
-
-                          <div className="detail-section">
-                            <h3>Analytics Summary</h3>
-                            <p><strong>Total Plays:</strong> {songDetails.song?.analytics?.totalPlays ?? 0}</p>
-                            <p><strong>Total Downloads:</strong> {songDetails.song?.analytics?.totalDownloads ?? 0}</p>
-                            <p><strong>Total Favorites:</strong> {songDetails.song?.analytics?.totalFavorites ?? 0}</p>
-                            <p><strong>Total Playtime:</strong> {formatHours(songDetails.song?.analytics?.totalPlaytimeHours)}</p>
-                            <p><strong>Trending Score:</strong> {Math.round(songDetails.song?.analytics?.trendingScore || 0)}</p>
-                            <p><strong>Avg Completion:</strong> {Math.round(songDetails.avgCompletionRate || 0)}%</p>
-                          </div>
+            {selectedSong && songDetails && (
+                <div className="modal-overlay" onClick={() => setSelectedSong(null)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>{songDetails.song.title}</h2>
+                            <button onClick={() => setSelectedSong(null)} className="close-btn">×</button>
                         </div>
-
-                        {Array.isArray(songDetails.popularTimestamps) && songDetails.popularTimestamps.length > 0 && (
-                          <div className="detail-section">
-                            <h3>Most Popular Timestamps</h3>
-                            <div className="timestamps-list">
-                              {(songDetails.popularTimestamps || []).slice(0, 10).map((timestamp, index) => (
-                                <div key={index} className="timestamp-item">
-                                  <span className="time">{formatTime(timestamp.avgPosition)}</span>
-                                  <span className="count">{timestamp.count} seeks</span>
+                        
+                        <div className="modal-body">
+                            <div className="song-details-grid">
+                                <div className="detail-section">
+                                    <h3>Basic Info</h3>
+                                    <p><strong>Artist:</strong> {songDetails.song.artist}</p>
+                                    <p><strong>Duration:</strong> {formatTime(songDetails.song.duration)}</p>
+                                    <p><strong>Collection:</strong> {songDetails.song.collectionType}</p>
+                                    <p><strong>Genres:</strong> {songDetails.song.genres?.map(g => g.name).join(', ')}</p>
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {Array.isArray(songDetails.recentInteractions) && songDetails.recentInteractions.length > 0 && (
-                          <div className="detail-section">
-                            <h3>Recent Activity</h3>
-                            <div className="activity-list">
-                              {(songDetails.recentInteractions || []).slice(0, 20).map((interaction, index) => (
-                                <div key={index} className="activity-item">
-                                  <span className="action">{interaction.interactionType}</span>
-                                  <span className="user">{interaction.userEmail || 'Anonymous'}</span>
-                                  <span className="time">{new Date(interaction.timestamp).toLocaleString()}</span>
+                                
+                                <div className="detail-section">
+                                    <h3>Analytics Summary</h3>
+                                    <p><strong>Total Plays:</strong> {songDetails.song.analytics.totalPlays}</p>
+                                    <p><strong>Total Downloads:</strong> {songDetails.song.analytics.totalDownloads}</p>
+                                    <p><strong>Total Favorites:</strong> {songDetails.song.analytics.totalFavorites}</p>
+                                    <p><strong>Total Playtime:</strong> {formatHours(songDetails.song.analytics.totalPlaytimeHours)}</p>
+                                    <p><strong>Trending Score:</strong> {Math.round(songDetails.song.analytics.trendingScore || 0)}</p>
+                                    <p><strong>Avg Completion:</strong> {Math.round(songDetails.avgCompletionRate || 0)}%</p>
                                 </div>
-                              ))}
                             </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
+
+                            {songDetails.popularTimestamps && songDetails.popularTimestamps.length > 0 && (
+                                <div className="detail-section">
+                                    <h3>Most Popular Timestamps</h3>
+                                    <div className="timestamps-list">
+                                        {songDetails.popularTimestamps.slice(0, 10).map((timestamp, index) => (
+                                            <div key={index} className="timestamp-item">
+                                                <span className="time">{formatTime(timestamp.avgPosition)}</span>
+                                                <span className="count">{timestamp.count} seeks</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {songDetails.recentInteractions && (
+                                <div className="detail-section">
+                                    <h3>Recent Activity</h3>
+                                    <div className="activity-list">
+                                        {songDetails.recentInteractions.slice(0, 20).map((interaction, index) => (
+                                            <div key={index} className="activity-item">
+                                                <span className="action">{interaction.interactionType}</span>
+                                                <span className="user">{interaction.userEmail || 'Anonymous'}</span>
+                                                <span className="time">
+                                                    {new Date(interaction.timestamp).toLocaleString()}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
-              </div>
             )}
         </div>
     );
