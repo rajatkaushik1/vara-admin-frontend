@@ -13,6 +13,8 @@ const AnalyticsManager = () => {
     const [autoRefresh, setAutoRefresh] = useState(true); // NEW: Auto-refresh toggle
     const [lastRefresh, setLastRefresh] = useState(new Date()); // NEW: Track last refresh
 
+    const adminToken = localStorage.getItem('adminToken'); // 1) Add adminToken
+
     // Fetch analytics data
     const fetchAnalytics = async () => {
         setLoading(true);
@@ -21,6 +23,7 @@ const AnalyticsManager = () => {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) // 2) Add Authorization
                 },
             });
 
@@ -46,6 +49,7 @@ const AnalyticsManager = () => {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) // 2) Add Authorization
                 },
             });
 
@@ -67,12 +71,16 @@ const AnalyticsManager = () => {
     const fetchSongDetails = async (songId) => {
         setLoading(true);
         try {
-            const response = await fetch(ANALYTICS_ENDPOINTS.getSongAnalytics(songId), {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
+            const response = await fetch(
+                ANALYTICS_ENDPOINTS.getSongAnalytics(songId, timeFilter), // 3) Use timeFilter
+                {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) // 2) Add Authorization
+                    },
+                }
+            );
 
             if (!response.ok) {
                 throw new Error('Failed to fetch song details');
@@ -110,6 +118,20 @@ const AnalyticsManager = () => {
         setLastRefresh(new Date());
     };
 
+    // 4) Load data immediately on mount and when timeFilter changes
+    useEffect(() => {
+        fetchAnalytics();
+        fetchPlatformStats();
+        setLastRefresh(new Date());
+    }, [timeFilter]);
+
+    // 5) Fetch song details when selectedSong changes
+    useEffect(() => {
+        if (selectedSong) {
+            fetchSongDetails(selectedSong);
+        }
+    }, [selectedSong, timeFilter]);
+
     // Reset weekly counters (admin action)
     const resetWeeklyCounters = async () => {
         if (!confirm('Are you sure you want to reset all weekly counters? This will affect trending calculations.')) {
@@ -118,13 +140,18 @@ const AnalyticsManager = () => {
 
         try {
             const response = await fetch(ANALYTICS_ENDPOINTS.resetWeeklyCounters(), {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}) // 2) Add Authorization
+                }
             });
             if (!response.ok) throw new Error('Failed to reset counters');
             
             alert('Weekly counters reset successfully!');
             fetchAnalytics();
             fetchPlatformStats();
+            setLastRefresh(new Date()); // 6) Refresh after reset
         } catch (err) {
             alert('Failed to reset counters');
             console.error('Reset error:', err);
