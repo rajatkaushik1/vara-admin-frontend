@@ -38,7 +38,7 @@ import React, { useState } from 'react';
           <header className="dashboard-header">
             <div className="header-left">
               <img src="/logo.png" alt="Vara Logo" className="app-logo" />
-              <h1>Vara Admin Panel</h1>
+              <h1>Admin Panel</h1>
             </div>
             <nav className="dashboard-nav">
               <button
