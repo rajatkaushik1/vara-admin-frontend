@@ -37,7 +37,7 @@ function InstrumentManager() {
 
   const fetchInstruments = async () => {
     setLoading(true);
-    setNotice('');
+    setError(''); // keep any prior success message visible
     try {
       const res = await fetch(`${API_BASE_URL}/api/instruments`, {
         headers: {
@@ -88,18 +88,21 @@ function InstrumentManager() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/instruments`, {
         method: 'POST',
-        headers: {
-          'Authorization': adminToken ? `Bearer ${adminToken}` : undefined
-        },
+        headers: { 'Authorization': adminToken ? `Bearer ${adminToken}` : undefined },
         body: form
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Failed to add instrument.');
+      if (!res.ok) {
+        if (res.status === 409) {
+          throw new Error(data.error || `Instrument "${(newName || '').trim()}" already exists.`);
+        }
+        throw new Error(data.error || `Failed to add instrument (status ${res.status}).`);
+      }
       setNotice('Instrument added successfully!');
       setNewName(''); setNewDescription(''); setNewImage(null);
       const input = document.getElementById('newInstrumentImageInput');
       if (input) input.value = '';
-      fetchInstruments();
+      await fetchInstruments(); // keep success message visible
     } catch (err) {
       setNotice(err.message, true);
     } finally {
@@ -151,7 +154,12 @@ function InstrumentManager() {
         body: form
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Failed to update instrument.');
+      if (!res.ok) {
+        if (res.status === 409) {
+          throw new Error(data.error || `Another instrument with the name "${(editName || '').trim()}" already exists.`);
+        }
+        throw new Error(data.error || `Failed to update instrument (status ${res.status}).`);
+      }
       setNotice('Instrument updated successfully!');
       cancelEdit();
       fetchInstruments();
