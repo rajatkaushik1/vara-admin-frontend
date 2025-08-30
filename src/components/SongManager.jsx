@@ -19,6 +19,7 @@ function SongManager({ genreUpdateKey }) {
     const [songs, setSongs] = useState([]);
     const [allGenres, setAllGenres] = useState([]);
     const [allSubGenres, setAllSubGenres] = useState([]);
+    const [allInstruments, setAllInstruments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,6 +35,7 @@ function SongManager({ genreUpdateKey }) {
         collectionType: 'free',
         genres: [],
         subGenres: [],
+        instruments: [],
         imageFile: null,
         audioFile: null,
     });
@@ -44,6 +46,7 @@ function SongManager({ genreUpdateKey }) {
     // States for search/filter inputs
     const [genreSearchTerm, setGenreSearchTerm] = useState('');
     const [subGenreSearchTerm, setSubGenreSearchTerm] = useState('');
+    const [instrumentSearchTerm, setInstrumentSearchTerm] = useState('');
     const [songSearchTerm, setSongSearchTerm] = useState('');
     const [sortOrder, setSortOrder] = useState('desc');
 
@@ -68,23 +71,27 @@ function SongManager({ genreUpdateKey }) {
         }
         setLoading(true);
         try {
-            const [songsRes, genresRes, subGenresRes] = await Promise.all([
+            const [songsRes, genresRes, subGenresRes, instrumentsRes] = await Promise.all([
                 fetch(`${API_BASE_URL}/api/songs`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
                 fetch(`${API_BASE_URL}/api/genres`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
                 fetch(`${API_BASE_URL}/api/subgenres`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
+                fetch(`${API_BASE_URL}/api/instruments`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
             ]);
 
             if (!songsRes.ok) throw new Error('Failed to fetch songs.');
             if (!genresRes.ok) throw new Error('Failed to fetch genres.');
             if (!subGenresRes.ok) throw new Error('Failed to fetch sub-genres.');
+            if (!instrumentsRes.ok) throw new Error('Failed to fetch instruments.');
 
             const songsData = await songsRes.json();
             const genresData = await genresRes.json();
             const subGenresData = await subGenresRes.json();
+            const instrumentsData = await instrumentsRes.json();
 
             setSongs(songsData);
             setAllGenres(genresData);
             setAllSubGenres(subGenresData);
+            setAllInstruments(instrumentsData);
         } catch (err) {
             console.error("Failed to fetch initial data:", err);
             setError(err.message);
@@ -112,6 +119,7 @@ function SongManager({ genreUpdateKey }) {
             collectionType: 'free',
             genres: [],
             subGenres: [],
+            instruments: [],
             imageFile: null,
             audioFile: null,
         });
@@ -165,10 +173,11 @@ function SongManager({ genreUpdateKey }) {
             collectionType: song.collectionType,
             genres: song.genres ? song.genres.map(g => g._id) : [],
             subGenres: song.subGenres ? song.subGenres.map(sg => sg._id) : [],
-            imageFile: null, // Files are not re-populated, must be re-uploaded if changed
+            instruments: (song.instruments ? song.instruments.map(i => i._id) : []),
+            imageFile: null,
             audioFile: null,
         });
-        window.scrollTo(0, 0); // Scroll to top to see the form
+        window.scrollTo(0, 0);
     };
 
     const handleCancelEdit = () => {
@@ -195,6 +204,7 @@ function SongManager({ genreUpdateKey }) {
         payload.append('collectionType', formData.collectionType);
         payload.append('genres', JSON.stringify(formData.genres));
         payload.append('subGenres', JSON.stringify(formData.subGenres));
+        payload.append('instruments', JSON.stringify(formData.instruments));
         payload.append('bpm', formData.bpm);
         payload.append('key', formData.key);
         payload.append('hasVocals', formData.hasVocals);
@@ -230,7 +240,6 @@ function SongManager({ genreUpdateKey }) {
         }
         setIsSubmitting(true);
 
-        // **FIX**: Send a JSON payload for updates, not FormData
         const payload = {
             title: formData.title,
             bpm: formData.bpm,
@@ -239,6 +248,7 @@ function SongManager({ genreUpdateKey }) {
             collectionType: formData.collectionType,
             genres: formData.genres,
             subGenres: formData.subGenres,
+            instruments: formData.instruments,
         };
 
         try {
@@ -307,6 +317,10 @@ function SongManager({ genreUpdateKey }) {
         return matchesSearch && matchesSelectedGenre;
     });
 
+    const filteredInstruments = allInstruments.filter(inst =>
+        inst.name.toLowerCase().includes(instrumentSearchTerm.toLowerCase())
+    );
+
     const displayedSongs = songs
         .filter(song =>
             song.title.toLowerCase().includes(songSearchTerm.toLowerCase())
@@ -323,6 +337,7 @@ function SongManager({ genreUpdateKey }) {
     const tableHeaderStyle = { backgroundColor: '#333', padding: '10px', textAlign: 'left', color: '#fff' };
     const tableCellStyle = { padding: '10px', verticalAlign: 'top', color: '#ddd' };
     const genreSubGenreTagStyle = { display: 'inline-flex', alignItems: 'center', backgroundColor: '#555', padding: '5px 10px', borderRadius: '5px', fontSize: '0.85em', color: '#eee', marginRight: '8px', marginBottom: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' };
+    const instrumentTagStyle = { ...genreSubGenreTagStyle, backgroundColor: '#21c45d', color: '#0e1a12' };
 
     if (loading) return <div style={{ padding: '20px', color: '#eee' }}>Loading song data...</div>;
     if (error) return <div style={{ padding: '20px', color: '#dc3545' }}>Error: {error}</div>;
@@ -361,6 +376,29 @@ function SongManager({ genreUpdateKey }) {
                         <input type="text" placeholder="Search sub-genres..." value={subGenreSearchTerm} onChange={(e) => setSubGenreSearchTerm(e.target.value)} style={{ padding: '8px', width: 'calc(100% - 16px)', marginBottom: '10px', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }} />
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', padding: '8px', backgroundColor: '#555', border: '1px solid #666', borderRadius: '4px', maxHeight: '150px', overflowY: 'auto' }}>
                             {filteredSubGenres.map(subGenre => (<label key={subGenre._id}><input type="checkbox" name="subGenres" value={subGenre._id} checked={formData.subGenres.includes(subGenre._id)} onChange={handleFormChange} /> {subGenre.name}</label>))}
+                        </div>
+                    </div>
+                    <div>
+                        <label>Instruments (Select multiple):</label>
+                        <input
+                          type="text"
+                          placeholder="Search instrument..."
+                          value={instrumentSearchTerm}
+                          onChange={(e) => setInstrumentSearchTerm(e.target.value)}
+                          style={{ padding: '8px', width: 'calc(100% - 16px)', marginBottom: '10px', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }}
+                        />
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', padding: '8px', backgroundColor: '#555', border: '1px solid #666', borderRadius: '4px', maxHeight: '150px', overflowY: 'auto' }}>
+                          {filteredInstruments.map(inst => (
+                            <label key={inst._id}>
+                              <input
+                                type="checkbox"
+                                name="instruments"
+                                value={inst._id}
+                                checked={formData.instruments.includes(inst._id)}
+                                onChange={handleFormChange}
+                              /> {inst.name}
+                            </label>
+                          ))}
                         </div>
                     </div>
 
@@ -429,6 +467,9 @@ function SongManager({ genreUpdateKey }) {
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                                     {song.genres.map(g => <span key={g._id} style={{ ...genreSubGenreTagStyle, backgroundColor: '#e74c3c' }}>{g.name}</span>)}
                                     {song.subGenres.map(sg => <span key={sg._id} style={{ ...genreSubGenreTagStyle, backgroundColor: '#3498db' }}>{sg.name}</span>)}
+                                    {song.instruments && song.instruments.map(inst => (
+                                        <span key={inst._id} style={instrumentTagStyle}>{inst.name}</span>
+                                    ))}
                                 </div>
                             </td>
                             <td style={tableCellStyle}>
