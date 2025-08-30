@@ -2,6 +2,7 @@ import React, { useState } from 'react';
     import LoginPage from './LoginPage';
     import GenreManager from './components/GenreManager';
     import SubGenreManager from './components/SubGenreManager';
+    import InstrumentManager from './components/InstrumentManager';
     import SongManager from './components/SongManager';
     import AnalyticsManager from './components/AnalyticsManager';
     import './App.css'; // Import App-specific styles
@@ -53,6 +54,12 @@ import React, { useState } from 'react';
                 Manage Sub-genres
               </button>
               <button
+                className={activeTab === 'instruments' ? 'active' : ''}
+                onClick={() => setActiveTab('instruments')}
+              >
+                Manage Instruments
+              </button>
+              <button
                 className={activeTab === 'songs' ? 'active' : ''}
                 onClick={() => setActiveTab('songs')}
               >
@@ -73,6 +80,7 @@ import React, { useState } from 'react';
           <main className="dashboard-content">
             {activeTab === 'genres' && <GenreManager onGenreAdded={handleGenreDataChange} />}
             {activeTab === 'subgenres' && <SubGenreManager genreUpdateKey={genreUpdateKey} />}
+            {activeTab === 'instruments' && <InstrumentManager />}
             {activeTab === 'songs' && <SongManager genreUpdateKey={genreUpdateKey} />}
             {activeTab === 'analytics' && <AnalyticsManager />}
           </main>
