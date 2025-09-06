@@ -39,9 +39,11 @@ function InstrumentManager() {
     setLoading(true);
     setError(''); // keep any prior success message visible
     try {
-      const res = await fetch(`${API_BASE_URL}/api/instruments`, {
+      const url = `${API_BASE_URL}/api/instruments?_=${Date.now()}`;
+      const res = await fetch(url, {
         headers: {
           'Authorization': adminToken ? `Bearer ${adminToken}` : undefined,
+          'Cache-Control': 'no-store'          // bypass any proxy caching
         }
       });
       if (!res.ok) {
@@ -179,10 +181,25 @@ function InstrumentManager() {
         method: 'DELETE',
         headers: { 'Authorization': adminToken ? `Bearer ${adminToken}` : undefined }
       });
+
+      // If it was already deleted server-side, treat as success in UI
+      if (res.status === 404) {
+        setInstruments(prev => prev.filter(x => x._id !== id));
+        setNotice('Instrument already deleted (404). List updated.');
+        // Optional: revalidate to ensure full sync
+        await fetchInstruments();
+        return;
+      }
+
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Failed to delete instrument.');
+
+      // Optimistic remove from UI
+      setInstruments(prev => prev.filter(x => x._id !== id));
+
       setNotice(data.message || 'Instrument deleted successfully.');
-      fetchInstruments();
+      // Revalidate with cache-buster to ensure server/source of truth is in sync
+      await fetchInstruments();
     } catch (err) {
       setNotice(err.message, true);
     } finally {
