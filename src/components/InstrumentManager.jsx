@@ -42,9 +42,9 @@ function InstrumentManager() {
       const url = `${API_BASE_URL}/api/instruments?_=${Date.now()}`;
       const res = await fetch(url, {
         headers: {
-          'Authorization': adminToken ? `Bearer ${adminToken}` : undefined,
-          'Cache-Control': 'no-store'          // bypass any proxy caching
-        }
+          Authorization: adminToken ? `Bearer ${adminToken}` : undefined
+        },
+        cache: 'no-store'
       });
       if (!res.ok) {
         // Graceful message when backend is not ready yet
