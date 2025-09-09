@@ -24,7 +24,7 @@ function SubGenreManager({ genreUpdateKey }) {
   // Effect to fetch genres for the dropdown and sub-genres
   useEffect(() => {
     if (adminToken) {
-      fetchGenresForDropdown();
+      fetchGenresForDropdown(true);
       fetchSubGenres();
     } else {
       setError('You are not authenticated. Please log in.');
@@ -32,10 +32,11 @@ function SubGenreManager({ genreUpdateKey }) {
   }, [adminToken, genreUpdateKey]); // Re-fetch when genreUpdateKey changes (from App.jsx)
 
 
-  const fetchGenresForDropdown = async () => {
+  const fetchGenresForDropdown = async (noCache = false) => {
     setError('');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/genres`, {
+      const url = `${API_BASE_URL}/api/genres${noCache ? `?_ts=${Date.now()}` : ''}`;
+      const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${adminToken}` },
       });
       if (!response.ok) {
@@ -49,11 +50,12 @@ function SubGenreManager({ genreUpdateKey }) {
     }
   };
 
-  const fetchSubGenres = async () => {
+  const fetchSubGenres = async (noCache = false) => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/subgenres`, {
+      const url = `${API_BASE_URL}/api/subgenres${noCache ? `?_ts=${Date.now()}` : ''}`;
+      const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${adminToken}` },
       });
       if (!response.ok) {
@@ -111,7 +113,7 @@ function SubGenreManager({ genreUpdateKey }) {
       const newSubGenreImageInput = document.getElementById('newSubGenreImageInput');
       if (newSubGenreImageInput) newSubGenreImageInput.value = '';
 
-      fetchSubGenres();
+      fetchSubGenres(true);
     } catch (err) {
       console.error("Error adding sub-genre:", err);
       setError(`Error adding sub-genre: ${err.message}`);
@@ -177,7 +179,7 @@ function SubGenreManager({ genreUpdateKey }) {
       const editSubGenreImageInput = document.getElementById('editSubGenreImageInput');
       if (editSubGenreImageInput) editSubGenreImageInput.value = '';
 
-      fetchSubGenres();
+      fetchSubGenres(true);
     } catch (err) {
       console.error("Error updating sub-genre:", err);
       setError(`Error updating sub-genre: ${err.message}`);
@@ -205,7 +207,7 @@ function SubGenreManager({ genreUpdateKey }) {
       }
 
       setMessage(data.message || 'Sub-genre deleted successfully!');
-      fetchSubGenres();
+      fetchSubGenres(true);
     } catch (err) {
       console.error("Error deleting sub-genre:", err);
       setError(`Error deleting sub-genre: ${err.message}`);
