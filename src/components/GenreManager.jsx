@@ -26,11 +26,12 @@ function GenreManager({ onGenreAdded }) {
     }
   }, [adminToken]);
 
-  const fetchGenres = async () => {
+  const fetchGenres = async (noCache = false) => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/genres`, {
+      const url = `${API_BASE_URL}/api/genres${noCache ? `?_ts=${Date.now()}` : ''}`;
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${adminToken}`,
         },
@@ -91,7 +92,7 @@ function GenreManager({ onGenreAdded }) {
       const newImageInput = document.getElementById('newGenreImageInput');
       if (newImageInput) newImageInput.value = '';
 
-      fetchGenres(); // Refresh the list
+      fetchGenres(true); // Refresh with cache-busting
       onGenreAdded(); // Notify parent for potential sub-genre/song manager refresh
     } catch (err) {
       console.error("Error adding genre:", err);
@@ -157,7 +158,7 @@ function GenreManager({ onGenreAdded }) {
       const editImageInput = document.getElementById('editGenreImageInput');
       if (editImageInput) editImageInput.value = '';
 
-      fetchGenres();
+      fetchGenres(true);
       onGenreAdded();
     } catch (err) {
       console.error("Error updating genre:", err);
@@ -188,7 +189,7 @@ function GenreManager({ onGenreAdded }) {
       }
 
       setMessage(data.message || 'Genre deleted successfully!');
-      fetchGenres();
+      fetchGenres(true);
       onGenreAdded(); // Notify parent for potential sub-genre/song manager refresh
     } catch (err) {
       console.error("Error deleting genre:", err);
