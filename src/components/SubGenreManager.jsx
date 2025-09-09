@@ -189,8 +189,6 @@ function SubGenreManager({ genreUpdateKey }) {
   };
 
   const handleDeleteSubGenre = async (id) => {
-    // Replaced window.confirm with a simple message for consistency with other parts of the app
-    // In a real app, you'd use a custom modal for confirmation.
     setMessage('Deleting sub-genre...');
     setLoading(true);
     setError('');
@@ -200,14 +198,27 @@ function SubGenreManager({ genreUpdateKey }) {
         headers: { 'Authorization': `Bearer ${adminToken}` },
       });
 
-      const data = await response.json();
+      // If already deleted server-side, treat as success in UI.
+      if (response.status === 404) {
+        // Optimistically remove from current list
+        setSubGenres((prev) => prev.filter((sg) => sg._id !== id));
+        setMessage('Sub-genre already deleted (404). List updated.');
+        // Revalidate to ensure full sync (cache-busted)
+        await fetchSubGenres(true);
+        return;
+      }
 
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
 
+      // Optimistically remove from current list (instant UI feedback)
+      setSubGenres((prev) => prev.filter((sg) => sg._id !== id));
+
       setMessage(data.message || 'Sub-genre deleted successfully!');
-      fetchSubGenres(true);
+      // Revalidate with cache-buster to avoid stale cache
+      await fetchSubGenres(true);
     } catch (err) {
       console.error("Error deleting sub-genre:", err);
       setError(`Error deleting sub-genre: ${err.message}`);
