@@ -74,9 +74,9 @@ function SongManager({ genreUpdateKey }) {
             const nocache = `admin_nocache=${Date.now()}`;
             const [songsRes, genresRes, subGenresRes, instrumentsRes] = await Promise.all([
                 fetch(`${API_BASE_URL}/api/songs?${nocache}`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
-                fetch(`${API_BASE_URL}/api/genres`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
-                fetch(`${API_BASE_URL}/api/subgenres`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
-                fetch(`${API_BASE_URL}/api/instruments`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
+                fetch(`${API_BASE_URL}/api/genres?${nocache}`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
+                fetch(`${API_BASE_URL}/api/subgenres?${nocache}`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
+                fetch(`${API_BASE_URL}/api/instruments?${nocache}`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
             ]);
 
             if (!songsRes.ok) throw new Error('Failed to fetch songs.');
