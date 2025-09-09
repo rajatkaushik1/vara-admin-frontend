@@ -35,16 +35,15 @@ function InstrumentManager() {
     }
   };
 
-  const fetchInstruments = async () => {
+  const fetchInstruments = async (noCache = false) => {
     setLoading(true);
     setError(''); // keep any prior success message visible
     try {
-      const url = `${API_BASE_URL}/api/instruments?_=${Date.now()}`;
+      const url = `${API_BASE_URL}/api/instruments${noCache ? `?_ts=${Date.now()}` : ''}`;
       const res = await fetch(url, {
         headers: {
           Authorization: adminToken ? `Bearer ${adminToken}` : undefined
-        },
-        cache: 'no-store'
+        }
       });
       if (!res.ok) {
         // Graceful message when backend is not ready yet
@@ -101,10 +100,13 @@ function InstrumentManager() {
         throw new Error(data.error || `Failed to add instrument (status ${res.status}).`);
       }
       setNotice('Instrument added successfully!');
-      setNewName(''); setNewDescription(''); setNewImage(null);
-      const input = document.getElementById('newInstrumentImageInput');
-      if (input) input.value = '';
-      await fetchInstruments(); // keep success message visible
+      setNewName('');
+      setNewDescription('');
+      setNewImage(null);
+      // Clear file input visually
+      const newInstrumentImageInput = document.getElementById('newInstrumentImageInput');
+      if (newInstrumentImageInput) newInstrumentImageInput.value = '';
+      await fetchInstruments(true); // force fresh data once after create
     } catch (err) {
       setNotice(err.message, true);
     } finally {
@@ -163,8 +165,15 @@ function InstrumentManager() {
         throw new Error(data.error || `Failed to update instrument (status ${res.status}).`);
       }
       setNotice('Instrument updated successfully!');
-      cancelEdit();
-      fetchInstruments();
+      setEditingId(null);
+      setEditName('');
+      setEditDescription('');
+      setEditImage(null);
+      setClearEditImage(false);
+      // Clear file input visually
+      const editInstrumentImageInput = document.getElementById('editInstrumentImageInput');
+      if (editInstrumentImageInput) editInstrumentImageInput.value = '';
+      fetchInstruments(true);
     } catch (err) {
       setNotice(err.message, true);
     } finally {
@@ -186,8 +195,7 @@ function InstrumentManager() {
       if (res.status === 404) {
         setInstruments(prev => prev.filter(x => x._id !== id));
         setNotice('Instrument already deleted (404). List updated.');
-        // Optional: revalidate to ensure full sync
-        await fetchInstruments();
+        await fetchInstruments(true);
         return;
       }
 
@@ -199,7 +207,7 @@ function InstrumentManager() {
 
       setNotice(data.message || 'Instrument deleted successfully.');
       // Revalidate with cache-buster to ensure server/source of truth is in sync
-      await fetchInstruments();
+      await fetchInstruments(true);
     } catch (err) {
       setNotice(err.message, true);
     } finally {
