@@ -169,8 +169,6 @@ function GenreManager({ onGenreAdded }) {
   };
 
   const handleDeleteGenre = async (id) => {
-    // Replaced window.confirm with a simple message for consistency with other parts of the app
-    // In a real app, you'd use a custom modal for confirmation.
     setMessage('Deleting genre...');
     setLoading(true);
     setError('');
@@ -182,15 +180,30 @@ function GenreManager({ onGenreAdded }) {
         },
       });
 
-      const data = await response.json();
+      // If already deleted server-side, treat as success in UI.
+      if (response.status === 404) {
+        // Optimistically remove from current list
+        setGenres((prev) => prev.filter((g) => g._id !== id));
+        setMessage('Genre already deleted (404). List updated.');
+        // Revalidate to ensure full sync with server (cache-busted)
+        await fetchGenres(true);
+        onGenreAdded?.();
+        return;
+      }
+
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
 
+      // Optimistically remove from current list (instant UI feedback)
+      setGenres((prev) => prev.filter((g) => g._id !== id));
+
       setMessage(data.message || 'Genre deleted successfully!');
-      fetchGenres(true);
-      onGenreAdded(); // Notify parent for potential sub-genre/song manager refresh
+      // Revalidate with cache-buster to avoid any stale caches
+      await fetchGenres(true);
+      onGenreAdded?.();
     } catch (err) {
       console.error("Error deleting genre:", err);
       setError(`Error deleting genre: ${err.message}`);
