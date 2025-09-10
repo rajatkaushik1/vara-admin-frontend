@@ -86,9 +86,9 @@ function SubGenreManager({ genreUpdateKey }) {
     const formData = new FormData();
     formData.append('name', newSubGenreName);
     formData.append('genre', selectedGenreId);
-    formData.append('description', newSubGenreDescription); // Append description
+    formData.append('description', newSubGenreDescription);
     if (newSubGenreImage) {
-      formData.append('subGenreImage', newSubGenreImage); // Append image file
+      formData.append('subGenreImage', newSubGenreImage);
     }
 
     try {
@@ -104,16 +104,32 @@ function SubGenreManager({ genreUpdateKey }) {
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
 
+      // Normalize the created sub-genre to ensure genre name is present
+      let created = data && data._id ? data : null;
+      if (created) {
+        if (!created.genre || !created.genre.name) {
+          const parent = genres.find(g => g._id === selectedGenreId);
+          if (parent) {
+            created = { ...created, genre: { _id: parent._id, name: parent.name } };
+          }
+        }
+        // Insert new sub-genre at the TOP for visibility
+        setSubGenres((prev) => [created, ...prev]);
+      }
+
       setMessage('Sub-genre added successfully!');
       setNewSubGenreName('');
       setNewSubGenreDescription('');
       setNewSubGenreImage(null);
       setSelectedGenreId('');
+      setSearchTerm(''); // Clear filter so the new item is guaranteed visible
+
       // Safely clear the file input visually
       const newSubGenreImageInput = document.getElementById('newSubGenreImageInput');
       if (newSubGenreImageInput) newSubGenreImageInput.value = '';
 
-      fetchSubGenres(true);
+      // Revalidate with cache-buster to ensure full sync
+      await fetchSubGenres(true);
     } catch (err) {
       console.error("Error adding sub-genre:", err);
       setError(`Error adding sub-genre: ${err.message}`);
