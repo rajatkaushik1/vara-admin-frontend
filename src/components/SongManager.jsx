@@ -4,15 +4,12 @@ import { API_BASE_URL } from '../config'; // Make sure this uses your named expo
 /**
  * SongManager Component
  *
- * This component handles all logic for creating, reading, updating, and deleting songs.
- *
- * Key Fixes in this version:
- * 1.  Separated Create and Update Logic:
- * - `handleCreateSong` handles new song uploads (POST with FormData).
- * - `handleUpdateSong` handles existing song edits (PUT with JSON). This is the primary fix for the `.trim()` error.
- * 2.  Clearer State Management: Uses a single `formData` state object to manage the form fields for both creating and editing, simplifying the logic.
- * 3.  Robust Error Handling: Provides clearer feedback to the user for both success and error scenarios.
- * 4.  Preserved All Features: All original features like BPM, key, vocals, multi-select genres, and duration calculation are maintained.
+ * Handles all logic for creating, reading, updating, and deleting songs.
+ * This version adds full MOODS support:
+ *  - Fetch moods from /api/moods
+ *  - Multi-select moods in the form
+ *  - Include moods in create/update payloads
+ *  - Show purple mood tags in the songs table
  */
 function SongManager({ genreUpdateKey }) {
     // --- STATE VARIABLES ---
@@ -20,6 +17,7 @@ function SongManager({ genreUpdateKey }) {
     const [allGenres, setAllGenres] = useState([]);
     const [allSubGenres, setAllSubGenres] = useState([]);
     const [allInstruments, setAllInstruments] = useState([]);
+    const [allMoods, setAllMoods] = useState([]); // NEW
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,6 +34,7 @@ function SongManager({ genreUpdateKey }) {
         genres: [],
         subGenres: [],
         instruments: [],
+        moods: [], // NEW
         imageFile: null,
         audioFile: null,
     });
@@ -47,6 +46,7 @@ function SongManager({ genreUpdateKey }) {
     const [genreSearchTerm, setGenreSearchTerm] = useState('');
     const [subGenreSearchTerm, setSubGenreSearchTerm] = useState('');
     const [instrumentSearchTerm, setInstrumentSearchTerm] = useState('');
+    const [moodSearchTerm, setMoodSearchTerm] = useState(''); // NEW
     const [songSearchTerm, setSongSearchTerm] = useState('');
     const [sortOrder, setSortOrder] = useState('desc');
 
@@ -72,27 +72,31 @@ function SongManager({ genreUpdateKey }) {
         setLoading(true);
         try {
             const nocache = `admin_nocache=${Date.now()}`;
-            const [songsRes, genresRes, subGenresRes, instrumentsRes] = await Promise.all([
+            const [songsRes, genresRes, subGenresRes, instrumentsRes, moodsRes] = await Promise.all([
                 fetch(`${API_BASE_URL}/api/songs?${nocache}`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
                 fetch(`${API_BASE_URL}/api/genres?${nocache}`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
                 fetch(`${API_BASE_URL}/api/subgenres?${nocache}`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
                 fetch(`${API_BASE_URL}/api/instruments?${nocache}`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
+                fetch(`${API_BASE_URL}/api/moods?${nocache}`, { headers: { 'Authorization': `Bearer ${adminToken}` } }), // NEW
             ]);
 
             if (!songsRes.ok) throw new Error('Failed to fetch songs.');
             if (!genresRes.ok) throw new Error('Failed to fetch genres.');
             if (!subGenresRes.ok) throw new Error('Failed to fetch sub-genres.');
             if (!instrumentsRes.ok) throw new Error('Failed to fetch instruments.');
+            if (!moodsRes.ok) throw new Error('Failed to fetch moods.'); // NEW
 
             const songsData = await songsRes.json();
             const genresData = await genresRes.json();
             const subGenresData = await subGenresRes.json();
             const instrumentsData = await instrumentsRes.json();
+            const moodsData = await moodsRes.json(); // NEW
 
             setSongs(songsData);
             setAllGenres(genresData);
             setAllSubGenres(subGenresData);
             setAllInstruments(instrumentsData);
+            setAllMoods(Array.isArray(moodsData) ? moodsData : []); // NEW
         } catch (err) {
             console.error("Failed to fetch initial data:", err);
             setError(err.message);
@@ -121,13 +125,16 @@ function SongManager({ genreUpdateKey }) {
             genres: [],
             subGenres: [],
             instruments: [],
+            moods: [], // NEW
             imageFile: null,
             audioFile: null,
         });
         setEditingSongOriginalTitle('');
         // Clear file input fields visually
-        document.getElementById('newSongImageInput').value = '';
-        document.getElementById('newSongAudioInput').value = '';
+        const img = document.getElementById('newSongImageInput');
+        const aud = document.getElementById('newSongAudioInput');
+        if (img) img.value = '';
+        if (aud) aud.value = '';
     };
 
     // Handle changes in form inputs
@@ -148,9 +155,9 @@ function SongManager({ genreUpdateKey }) {
         } else if (type === 'checkbox') {
             // Handle single checkbox for 'hasVocals'
             if (name === 'hasVocals') {
-                 setFormData(prev => ({ ...prev, hasVocals: checked }));
+                setFormData(prev => ({ ...prev, hasVocals: checked }));
             } else {
-                 // Handle multi-select checkboxes for genres/subgenres
+                // Handle multi-select checkboxes (genres, subGenres, instruments, moods)
                 const id = value;
                 const list = formData[name] || [];
                 const newList = checked ? [...list, id] : list.filter(item => item !== id);
@@ -175,6 +182,7 @@ function SongManager({ genreUpdateKey }) {
             genres: song.genres ? song.genres.map(g => g._id) : [],
             subGenres: song.subGenres ? song.subGenres.map(sg => sg._id) : [],
             instruments: (song.instruments ? song.instruments.map(i => i._id) : []),
+            moods: (song.moods ? song.moods.map(m => m._id) : []), // NEW
             imageFile: null,
             audioFile: null,
         });
@@ -187,7 +195,7 @@ function SongManager({ genreUpdateKey }) {
 
     // --- SUBMISSION LOGIC (CREATE / UPDATE / DELETE) ---
 
-    // **FIXED**: Handles only CREATING a new song
+    // Handles CREATING a new song
     const handleCreateSong = async () => {
         if (!formData.title.trim() || !formData.duration || formData.genres.length === 0 || !String(formData.bpm).trim() || !formData.key.trim()) {
             showNotification('Please fill in all required fields!', 'error');
@@ -206,6 +214,7 @@ function SongManager({ genreUpdateKey }) {
         payload.append('genres', JSON.stringify(formData.genres));
         payload.append('subGenres', JSON.stringify(formData.subGenres));
         payload.append('instruments', JSON.stringify(formData.instruments));
+        payload.append('moods', JSON.stringify(formData.moods)); // NEW
         payload.append('bpm', formData.bpm);
         payload.append('key', formData.key);
         payload.append('hasVocals', formData.hasVocals);
@@ -233,7 +242,7 @@ function SongManager({ genreUpdateKey }) {
         }
     };
 
-    // **FIXED**: Handles only UPDATING an existing song
+    // Handles UPDATING an existing song
     const handleUpdateSong = async () => {
         if (!formData.title.trim() || !String(formData.bpm).trim() || !formData.key.trim()) {
             showNotification('Title, BPM, and Key cannot be empty!', 'error');
@@ -250,6 +259,7 @@ function SongManager({ genreUpdateKey }) {
             genres: formData.genres,
             subGenres: formData.subGenres,
             instruments: formData.instruments,
+            moods: formData.moods, // NEW
         };
 
         try {
@@ -308,23 +318,27 @@ function SongManager({ genreUpdateKey }) {
 
     // --- FILTERING AND SORTING LOGIC ---
     const filteredGenres = allGenres.filter(genre =>
-        genre.name.toLowerCase().includes(genreSearchTerm.toLowerCase())
+        (genre?.name || '').toLowerCase().includes(genreSearchTerm.toLowerCase())
     );
 
     const filteredSubGenres = allSubGenres.filter(subGenre => {
-        const matchesSearch = subGenre.name.toLowerCase().includes(subGenreSearchTerm.toLowerCase());
+        const matchesSearch = (subGenre?.name || '').toLowerCase().includes(subGenreSearchTerm.toLowerCase());
         if (formData.genres.length === 0) return matchesSearch;
         const matchesSelectedGenre = subGenre.genre && formData.genres.includes(subGenre.genre._id);
         return matchesSearch && matchesSelectedGenre;
     });
 
     const filteredInstruments = allInstruments.filter(inst =>
-        inst.name.toLowerCase().includes(instrumentSearchTerm.toLowerCase())
+        (inst?.name || '').toLowerCase().includes(instrumentSearchTerm.toLowerCase())
+    );
+
+    const filteredMoods = allMoods.filter(mood =>
+        (mood?.name || '').toLowerCase().includes(moodSearchTerm.toLowerCase())
     );
 
     const displayedSongs = songs
         .filter(song =>
-            song.title.toLowerCase().includes(songSearchTerm.toLowerCase())
+            (song?.title || '').toLowerCase().includes(songSearchTerm.toLowerCase())
         )
         .sort((a, b) => {
             if (sortOrder === 'asc') return new Date(a.createdAt) - new Date(b.createdAt);
@@ -339,6 +353,7 @@ function SongManager({ genreUpdateKey }) {
     const tableCellStyle = { padding: '10px', verticalAlign: 'top', color: '#ddd' };
     const genreSubGenreTagStyle = { display: 'inline-flex', alignItems: 'center', backgroundColor: '#555', padding: '5px 10px', borderRadius: '5px', fontSize: '0.85em', color: '#eee', marginRight: '8px', marginBottom: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' };
     const instrumentTagStyle = { ...genreSubGenreTagStyle, backgroundColor: '#21c45d', color: '#0e1a12' };
+    const moodTagStyle = { ...genreSubGenreTagStyle, backgroundColor: '#8e44ad', color: '#ffffff' }; // NEW purple
 
     if (loading) return <div style={{ padding: '20px', color: '#eee' }}>Loading song data...</div>;
     if (error) return <div style={{ padding: '20px', color: '#dc3545' }}>Error: {error}</div>;
@@ -364,7 +379,6 @@ function SongManager({ genreUpdateKey }) {
                     <label><input type="checkbox" name="hasVocals" checked={formData.hasVocals} onChange={handleFormChange} /> This song contains vocals</label>
 
                     {/* Genres and Sub-Genres Selection */}
-                    {/* (Your existing JSX for genre/sub-genre selection is complex but should work with the new `handleFormChange` logic. I've adapted it below) */}
                     <div>
                         <label>Genres (Select multiple):</label>
                         <input type="text" placeholder="Search genres..." value={genreSearchTerm} onChange={(e) => setGenreSearchTerm(e.target.value)} style={{ padding: '8px', width: 'calc(100% - 16px)', marginBottom: '10px', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }} />
@@ -379,6 +393,8 @@ function SongManager({ genreUpdateKey }) {
                             {filteredSubGenres.map(subGenre => (<label key={subGenre._id}><input type="checkbox" name="subGenres" value={subGenre._id} checked={formData.subGenres.includes(subGenre._id)} onChange={handleFormChange} /> {subGenre.name}</label>))}
                         </div>
                     </div>
+
+                    {/* Instruments */}
                     <div>
                         <label>Instruments (Select multiple):</label>
                         <input
@@ -398,6 +414,31 @@ function SongManager({ genreUpdateKey }) {
                                 checked={formData.instruments.includes(inst._id)}
                                 onChange={handleFormChange}
                               /> {inst.name}
+                            </label>
+                          ))}
+                        </div>
+                    </div>
+
+                    {/* Moods (NEW) */}
+                    <div>
+                        <label>Moods (Select multiple):</label>
+                        <input
+                          type="text"
+                          placeholder="Search mood..."
+                          value={moodSearchTerm}
+                          onChange={(e) => setMoodSearchTerm(e.target.value)}
+                          style={{ padding: '8px', width: 'calc(100% - 16px)', marginBottom: '10px', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: '4px' }}
+                        />
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', padding: '8px', backgroundColor: '#555', border: '1px solid #666', borderRadius: '4px', maxHeight: '150px', overflowY: 'auto' }}>
+                          {filteredMoods.map(m => (
+                            <label key={m._id}>
+                              <input
+                                type="checkbox"
+                                name="moods"
+                                value={m._id}
+                                checked={formData.moods.includes(m._id)}
+                                onChange={handleFormChange}
+                              /> {m.name}
                             </label>
                           ))}
                         </div>
@@ -470,6 +511,9 @@ function SongManager({ genreUpdateKey }) {
                                     {song.subGenres.map(sg => <span key={sg._id} style={{ ...genreSubGenreTagStyle, backgroundColor: '#3498db' }}>{sg.name}</span>)}
                                     {song.instruments && song.instruments.map(inst => (
                                         <span key={inst._id} style={instrumentTagStyle}>{inst.name}</span>
+                                    ))}
+                                    {song.moods && song.moods.map(m => ( // NEW
+                                        <span key={m._id} style={moodTagStyle}>{m.name}</span>
                                     ))}
                                 </div>
                             </td>
