@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { API_BASE_URL } from '../config';
-import { analyzeAudioWithEssentia } from '../utils/essentiaAnalysis';
 
 const LAST_BATCH_KEY = 'varaAdminLastBatchId';
 
@@ -16,9 +15,6 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isAnalyzingAudio, setIsAnalyzingAudio] = useState(false);
-  const [autoDetectResult, setAutoDetectResult] = useState(null);
-  const analyzeSeqRef = useRef(0);
 
   // Info Box + Batch inline add
   const [infoBoxText, setInfoBoxText] = useState('');
@@ -186,65 +182,9 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
     const aud = document.getElementById('newSongAudioInput');
     if (img) img.value = '';
     if (aud) aud.value = '';
-    setIsAnalyzingAudio(false);
-    setAutoDetectResult(null);
-    analyzeSeqRef.current = 0;
   };
 
   // --- FORM HANDLERS ---
-
-  const runAudioAnalysis = useCallback(async (file) => {
-    if (!file) return;
-
-    const seq = ++analyzeSeqRef.current;
-    setIsAnalyzingAudio(true);
-    setAutoDetectResult(null);
-
-    try {
-      const result = await analyzeAudioWithEssentia(file, {
-        maxSeconds: 75,
-        minBpm: 60,
-        maxBpm: 180,
-      });
-
-      // If another file was selected meanwhile, ignore this result
-      if (seq !== analyzeSeqRef.current) return;
-
-      if (result && (result.bpm != null || result.key)) {
-        const safeConfidence =
-          typeof result.confidence === 'number'
-            ? Math.max(0, Math.min(1, result.confidence))
-            : null;
-
-        setAutoDetectResult({
-          bpm: result.bpm != null ? result.bpm : null,
-          key: result.key || null,
-          confidence: safeConfidence,
-        });
-
-        // Auto-fill BPM and Key while allowing manual overrides
-        setFormData((prev) => {
-          const next = { ...prev };
-          if (result.bpm != null) {
-            next.bpm = result.bpm;
-          }
-          // Only auto-fill key if we have some confidence; threshold ~0.15
-          if (result.key && (safeConfidence === null || safeConfidence >= 0.15)) {
-            next.key = result.key;
-          }
-          return next;
-        });
-      }
-    } catch (err) {
-      console.error('Audio auto-analysis failed:', err);
-    } finally {
-      // Only clear the loading state if this is the latest analysis request
-      if (seq === analyzeSeqRef.current) {
-        setIsAnalyzingAudio(false);
-      }
-    }
-  }, [setFormData]);
-
   const handleFormChange = (e) => {
     const { name, value, type, checked, files } = e.target;
 
@@ -258,8 +198,6 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
           setFormData(prev => ({ ...prev, duration: Math.round(audio.duration) }));
           URL.revokeObjectURL(audioUrl);
         };
-        // NEW: trigger auto BPM/Key analysis
-        runAudioAnalysis(file);
       }
       return;
     }
@@ -709,23 +647,6 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
             <input type="number" name="bpm" placeholder="e.g., 120" value={formData.bpm} onChange={handleFormChange} style={{ padding: 8, backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: 4 }} required />
             <input type="text" name="key" placeholder="e.g., C Major" value={formData.key} onChange={handleFormChange} style={{ padding: 8, backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: 4 }} required />
           </div>
-          {isAnalyzingAudio && (
-            <div style={{ marginTop: 6, color: '#ffc107', fontSize: 12 }}>
-              Auto-detecting BPM/Key from audio file...
-            </div>
-          )}
-          {!isAnalyzingAudio && autoDetectResult && (autoDetectResult.bpm != null || autoDetectResult.key) && (
-            <div style={{ marginTop: 6, color: '#9aa', fontSize: 12 }}>
-              Auto-detected
-              {autoDetectResult.bpm != null ? ` BPM: ${autoDetectResult.bpm}` : ''}
-              {autoDetectResult.key ? (autoDetectResult.bpm != null ? ', ' : ' Key: ') : ''}
-              {autoDetectResult.key && autoDetectResult.bpm == null ? `${autoDetectResult.key}` : ''}
-              {typeof autoDetectResult.confidence === 'number'
-                ? ` (confidence ${(autoDetectResult.confidence * 100).toFixed(0)}%)`
-                : ''}
-              . You can still edit BPM and Key manually.
-            </div>
-          )}
 
           {/* Batch */}
           <div>
