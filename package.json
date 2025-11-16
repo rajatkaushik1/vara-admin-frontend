@@ -11,10 +11,17 @@
                     "start": "serve -s dist -l $PORT"
           },
           "dependencies": {
+<<<<<<< HEAD
                     "meyda": "^5.6.3",
                     "react": "^18.2.0",
                     "react-dom": "^18.2.0",
                     "serve": "^14.2.1"
+=======
+                    "react": "^18.2.0",
+                    "react-dom": "^18.2.0",
+                    "serve": "^14.2.1",
+                    "meyda": "^5.6.3"
+>>>>>>> c3c26b8fe40b4a0726798353e00d61262626ae09
           },
           "devDependencies": {
                     "@types/react": "^18.2.66",
@@ -30,3 +37,8 @@
                     "node": ">=18"
           }
 }
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> c3c26b8fe40b4a0726798353e00d61262626ae09

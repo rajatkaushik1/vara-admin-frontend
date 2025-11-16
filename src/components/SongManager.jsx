@@ -1,12 +1,18 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { API_BASE_URL } from '../config';
 import { analyzeAudioWithEssentia } from '../utils/essentiaAnalysis';
+<<<<<<< HEAD
 import { analyzeAudioFile } from '../utils/audioAnalysis';
+=======
+>>>>>>> c3c26b8fe40b4a0726798353e00d61262626ae09
 
 const LAST_BATCH_KEY = 'varaAdminLastBatchId';
 
 function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
+<<<<<<< HEAD
 
+=======
+>>>>>>> c3c26b8fe40b4a0726798353e00d61262626ae09
   // --- STATE VARIABLES ---
   const [songs, setSongs] = useState([]);
   const [allGenres, setAllGenres] = useState([]);
@@ -18,6 +24,12 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+<<<<<<< HEAD
+=======
+  const [isAnalyzingAudio, setIsAnalyzingAudio] = useState(false);
+  const [autoDetectResult, setAutoDetectResult] = useState(null);
+  const analyzeSeqRef = useRef(0);
+>>>>>>> c3c26b8fe40b4a0726798353e00d61262626ae09
 
   // Info Box + Batch inline add
   const [infoBoxText, setInfoBoxText] = useState('');
@@ -60,9 +72,12 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
   // Role detection (prop-first; falls back to internal fetch if needed)
   const [adminRole, setAdminRole] = useState(adminRoleProp || null);
   const isEditor = (adminRoleProp ? adminRoleProp === 'editor' : adminRole === 'editor');
+<<<<<<< HEAD
   const [isAnalyzingAudio, setIsAnalyzingAudio] = useState(false);
   const [audioAnalysisResult, setAudioAnalysisResult] = useState(null);
   const audioAnalysisSeqRef = useRef(0);
+=======
+>>>>>>> c3c26b8fe40b4a0726798353e00d61262626ae09
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -188,24 +203,91 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
     const aud = document.getElementById('newSongAudioInput');
     if (img) img.value = '';
     if (aud) aud.value = '';
+<<<<<<< HEAD
   };
 
   // --- FORM HANDLERS ---
+=======
+    setIsAnalyzingAudio(false);
+    setAutoDetectResult(null);
+    analyzeSeqRef.current = 0;
+  };
+
+  // --- FORM HANDLERS ---
+
+  const runAudioAnalysis = useCallback(async (file) => {
+    if (!file) return;
+
+    const seq = ++analyzeSeqRef.current;
+    setIsAnalyzingAudio(true);
+    setAutoDetectResult(null);
+
+    try {
+      const result = await analyzeAudioWithEssentia(file, {
+        maxSeconds: 75,
+        minBpm: 60,
+        maxBpm: 180,
+      });
+
+      // If another file was selected meanwhile, ignore this result
+      if (seq !== analyzeSeqRef.current) return;
+
+      if (result && (result.bpm != null || result.key)) {
+        const safeConfidence =
+          typeof result.confidence === 'number'
+            ? Math.max(0, Math.min(1, result.confidence))
+            : null;
+
+        setAutoDetectResult({
+          bpm: result.bpm != null ? result.bpm : null,
+          key: result.key || null,
+          confidence: safeConfidence,
+        });
+
+        // Auto-fill BPM and Key while allowing manual overrides
+        setFormData((prev) => {
+          const next = { ...prev };
+          if (result.bpm != null) {
+            next.bpm = result.bpm;
+          }
+          // Only auto-fill key if we have some confidence; threshold ~0.15
+          if (result.key && (safeConfidence === null || safeConfidence >= 0.15)) {
+            next.key = result.key;
+          }
+          return next;
+        });
+      }
+    } catch (err) {
+      console.error('Audio auto-analysis failed:', err);
+    } finally {
+      // Only clear the loading state if this is the latest analysis request
+      if (seq === analyzeSeqRef.current) {
+        setIsAnalyzingAudio(false);
+      }
+    }
+  }, [setFormData]);
+
+>>>>>>> c3c26b8fe40b4a0726798353e00d61262626ae09
   const handleFormChange = (e) => {
     const { name, value, type, checked, files } = e.target;
 
     if (type === 'file') {
       const file = files[0];
       setFormData(prev => ({ ...prev, [name]: file }));
+<<<<<<< HEAD
 
       if (name === 'audioFile' && file) {
         // Existing: detect duration from the selected file
+=======
+      if (name === 'audioFile' && file) {
+>>>>>>> c3c26b8fe40b4a0726798353e00d61262626ae09
         const audioUrl = URL.createObjectURL(file);
         const audio = new Audio(audioUrl);
         audio.onloadedmetadata = () => {
           setFormData(prev => ({ ...prev, duration: Math.round(audio.duration) }));
           URL.revokeObjectURL(audioUrl);
         };
+<<<<<<< HEAD
 
         // NEW: trigger BPM/Key analysis
         // Use a sequence number to avoid race conditions if the file changes quickly
@@ -289,6 +371,11 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
         })();
       }
 
+=======
+        // NEW: trigger auto BPM/Key analysis
+        runAudioAnalysis(file);
+      }
+>>>>>>> c3c26b8fe40b4a0726798353e00d61262626ae09
       return;
     }
 
@@ -697,7 +784,11 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
 
   return (
     <div style={{ padding: '20px' }}>
+<<<<<<< HEAD
      <h2 style={{ color: '#eee', borderBottom: '1px solid #444', paddingBottom: '10px' }}>Manage Songs</h2>
+=======
+      <h2 style={{ color: '#eee', borderBottom: '1px solid #444', paddingBottom: '10px' }}>Manage Songs</h2>
+>>>>>>> c3c26b8fe40b4a0726798353e00d61262626ae09
       {notification.message && (
         <div style={{ padding: '10px 15px', marginBottom: '20px', borderRadius: '4px', backgroundColor: notification.type === 'success' ? '#28a745' : '#dc3545', color: 'white', textAlign: 'center', fontWeight: 'bold' }}>
           {notification.message}
@@ -737,6 +828,26 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
             <input type="number" name="bpm" placeholder="e.g., 120" value={formData.bpm} onChange={handleFormChange} style={{ padding: 8, backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: 4 }} required />
             <input type="text" name="key" placeholder="e.g., C Major" value={formData.key} onChange={handleFormChange} style={{ padding: 8, backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: 4 }} required />
           </div>
+<<<<<<< HEAD
+=======
+          {isAnalyzingAudio && (
+            <div style={{ marginTop: 6, color: '#ffc107', fontSize: 12 }}>
+              Auto-detecting BPM/Key from audio file...
+            </div>
+          )}
+          {!isAnalyzingAudio && autoDetectResult && (autoDetectResult.bpm != null || autoDetectResult.key) && (
+            <div style={{ marginTop: 6, color: '#9aa', fontSize: 12 }}>
+              Auto-detected
+              {autoDetectResult.bpm != null ? ` BPM: ${autoDetectResult.bpm}` : ''}
+              {autoDetectResult.key ? (autoDetectResult.bpm != null ? ', ' : ' Key: ') : ''}
+              {autoDetectResult.key && autoDetectResult.bpm == null ? `${autoDetectResult.key}` : ''}
+              {typeof autoDetectResult.confidence === 'number'
+                ? ` (confidence ${(autoDetectResult.confidence * 100).toFixed(0)}%)`
+                : ''}
+              . You can still edit BPM and Key manually.
+            </div>
+          )}
+>>>>>>> c3c26b8fe40b4a0726798353e00d61262626ae09
 
           {/* Batch */}
           <div>
@@ -861,6 +972,7 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
           </div>
           <div>
             <label htmlFor="newSongAudioInput">Audio File {formData.id && '(leave blank to keep existing)'}:</label>
+<<<<<<< HEAD
             <input
               type="file"
               id="newSongAudioInput"
@@ -896,6 +1008,10 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
                   : ''}
               </div>
             )}
+=======
+            <input type="file" id="newSongAudioInput" name="audioFile" accept="audio/*" onChange={handleFormChange} style={{ padding: 8, width: 'calc(100% - 16px)', backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: 4 }} required={!formData.id} />
+            {formData.duration && <div>Detected Duration: {formData.duration} seconds</div>}
+>>>>>>> c3c26b8fe40b4a0726798353e00d61262626ae09
           </div>
 
           {/* Submit */}
