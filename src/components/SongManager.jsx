@@ -217,15 +217,13 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
             let analysis = null;
             let source = 'essentia';
 
-            try {
-              analysis = await analyzeAudioWithEssentia(file, { maxSeconds: 75 });
-            } catch (err) {
-              console.warn('Essentia analysis failed, falling back:', err);
-              analysis = null;
-            }
+            const isWav =
+              file.type === 'audio/wav' ||
+              file.type === 'audio/x-wav' ||
+              /\.wav$/i.test(file.name || '');
 
-            // If Essentia failed or did not produce a BPM, fall back to the simpler analyzer
-            if (!analysis || (!analysis.bpm && !analysis.key)) {
+            if (isWav) {
+              // For WAV files, skip Essentia and use fallback analyzer only
               source = 'fallback';
               try {
                 analysis = await analyzeAudioFile(file, {
@@ -234,8 +232,31 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
                   maxBpm: 180
                 });
               } catch (fallbackErr) {
-                console.warn('Fallback analysis failed:', fallbackErr);
+                console.warn('Fallback analysis for WAV failed:', fallbackErr);
                 analysis = null;
+              }
+            } else {
+              // Non-WAV: keep existing behavior (Essentia first, then fallback if needed)
+              try {
+                analysis = await analyzeAudioWithEssentia(file, { maxSeconds: 75 });
+              } catch (err) {
+                console.warn('Essentia analysis failed, falling back:', err);
+                analysis = null;
+              }
+
+              // If Essentia failed or did not produce a BPM/Key, fall back to the simpler analyzer
+              if (!analysis || (!analysis.bpm && !analysis.key)) {
+                source = 'fallback';
+                try {
+                  analysis = await analyzeAudioFile(file, {
+                    maxSeconds: 75,
+                    minBpm: 60,
+                    maxBpm: 180
+                  });
+                } catch (fallbackErr) {
+                  console.warn('Fallback analysis failed:', fallbackErr);
+                  analysis = null;
+                }
               }
             }
 
