@@ -122,13 +122,24 @@ function estimateBpmFromEnvelope(signal, sampleRate, minBpm = 60, maxBpm = 180) 
 	while (bpm < minBpm) bpm *= 2;
 	while (bpm > maxBpm) bpm /= 2;
 
+	// Heuristic to correct obvious doubled tempos (e.g., 176 -> ~88)
+	let adjustedBpm = Math.round(bpm);
+	const rawBpm = adjustedBpm;
+	if (adjustedBpm > 150) {
+		const half = adjustedBpm / 2;
+		if (half >= 70 && half <= 135) {
+			adjustedBpm = Math.round(half);
+		}
+	}
+
 	return {
-		bpm: Math.round(bpm),
+		bpm: adjustedBpm,
 		debug: {
 			frameSize,
 			hopSize,
 			lag: bestLag,
-			acfPeak: bestVal
+			acfPeak: bestVal,
+			rawBpm
 		}
 	};
 }
@@ -210,9 +221,16 @@ function estimateKeyFromChroma(chroma) {
 	const diff = bestScore - (secondBest || 0);
 	const confidence = Math.max(0, Math.min(1, diff / bestScore));
 
+	// Suppress very low-confidence keys to avoid misleading labels
+	let finalKey = bestKey;
+	let finalConfidence = confidence;
+	if (finalConfidence < 0.15) {
+		finalKey = null;
+	}
+
 	return {
-		key: bestKey,
-		confidence,
+		key: finalKey,
+		confidence: finalConfidence,
 		debug: {
 			bestScore,
 			secondBest,
