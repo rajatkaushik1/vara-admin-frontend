@@ -19,6 +19,7 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0); // upload progress for new song creation
 
   // Info Box + Batch inline add
   const [infoBoxText, setInfoBoxText] = useState('');
@@ -386,25 +387,53 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
     payload.append('audio', formData.audioFile);
     if (formData.externalSongId) payload.append('externalSongId', formData.externalSongId);
     if (formData.batchId) payload.append('batchId', formData.batchId);
-
     try {
-      const response = await fetch(`${API_BASE_URL}/api/songs`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${adminToken}` },
-        body: payload,
+      setUploadProgress(0);
+
+      const data = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_BASE_URL}/api/songs`);
+        xhr.setRequestHeader('Authorization', `Bearer ${adminToken}`);
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            setUploadProgress(percent);
+          }
+        };
+
+        xhr.onload = () => {
+          let parsed = null;
+          try {
+            parsed = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+          } catch {
+            parsed = null;
+          }
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(parsed);
+          } else {
+            const msg = (parsed && (parsed.message || parsed.error)) || `HTTP error! status: ${xhr.status}`;
+            reject(new Error(msg));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new Error('Network error during upload'));
+        };
+
+        xhr.send(payload);
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || `HTTP error! status: ${response.status}`);
-      }
+
       showNotification('Song uploaded successfully!', 'success');
       resetForm();
+      setUploadProgress(0);
       await fetchAllData();
     } catch (err) {
       console.error("Failed to upload song:", err);
       showNotification(`Upload Error: ${err.message}`, 'error');
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
@@ -922,6 +951,27 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
           <button type="submit" disabled={isSubmitting} style={{ padding: '10px 20px', backgroundColor: isSubmitting ? '#888' : '#007bff', color: 'white', border: 'none', borderRadius: 4, cursor: isSubmitting ? 'not-allowed' : 'pointer', marginTop: 15 }}>
             {isSubmitting ? (formData.id ? 'Updating...' : 'Uploading...') : (formData.id ? 'Update Song' : 'Upload Song')}
           </button>
+          {isSubmitting && !formData.id && (
+            <div style={{ marginTop: 8, color: '#ccc', fontSize: '0.9em' }}>
+              {uploadProgress > 0 ? `Uploading audio & image: ${uploadProgress}%` : 'Starting upload...'}
+              <div style={{
+                marginTop: 4,
+                height: 6,
+                borderRadius: 3,
+                background: '#444',
+                overflow: 'hidden'
+              }}>
+                <div
+                  style={{
+                    width: `${uploadProgress}%`,
+                    height: '100%',
+                    background: '#28a745',
+                    transition: 'width 0.2s ease-out'
+                  }}
+                />
+              </div>
+            </div>
+          )}
           {formData.id && (
             <button type="button" onClick={handleCancelEdit} style={{ padding: '10px 20px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', marginTop: 10 }}>
               Cancel Edit
