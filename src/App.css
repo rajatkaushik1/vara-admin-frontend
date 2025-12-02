@@ -1,0 +1,429 @@
+/* General styles for the admin dashboard */
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif; /* Using Inter font */
+      background-color: #121212; /* Even darker background */
+      color: #e0e0e0; /* Lighter text color for better contrast */
+      line-height: 1.6;
+      scroll-behavior: smooth;
+    }
+
+    .admin-dashboard {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1a1a1a, #0a0a0a); /* Subtle gradient background */
+    }
+
+    /* Header styles */
+    .dashboard-header {
+      background-color: #1f1f1f; /* Darker header */
+      padding: 15px 30px; /* More padding */
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px; /* Increased gap */
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); /* Stronger shadow */
+      position: sticky; /* Make header sticky */
+      top: 0;
+      z-index: 1000; /* Ensure it stays on top */
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 15px; /* Space between logo and title */
+    }
+
+    .app-logo {
+      height: 40px; /* Size for the logo */
+      width: auto;
+      border-radius: 5px; /* Slightly rounded corners for logo */
+    }
+
+    .dashboard-header h1 {
+      margin: 0;
+      color: #00aaff; /* Vibrant blue for title */
+      font-size: 2.2em; /* Larger title */
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .dashboard-nav {
+      display: flex;
+      gap: 12px; /* Space between nav buttons */
+      flex-wrap: wrap;
+    }
+
+    .dashboard-nav button {
+      background-color: #333;
+      color: #e0e0e0;
+      border: 1px solid #555;
+      padding: 10px 18px;
+      border-radius: 25px; /* Pill-shaped buttons */
+      cursor: pointer;
+      font-size: 1em;
+      font-weight: 600;
+      transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    .dashboard-nav button:hover {
+      background-color: #444;
+      border-color: #00aaff;
+      transform: translateY(-2px); /* Slight lift on hover */
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    .dashboard-nav button.active {
+      background-color: #007bff; /* Active button color */
+      border-color: #007bff;
+      color: white;
+      font-weight: bold;
+      box-shadow: 0 3px 8px rgba(0, 123, 255, 0.4);
+    }
+
+    .logout-button {
+      background-color: #dc3545; /* Red for logout */
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 25px; /* Pill-shaped */
+      cursor: pointer;
+      font-size: 1em;
+      font-weight: 600;
+      transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    .logout-button:hover {
+      background-color: #c82333;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Main content area */
+    .dashboard-content {
+      flex-grow: 1;
+      padding: 30px; /* More padding */
+      background-color: #121212; /* Matches body background */
+    }
+
+    /* Login Page Specific Styles - Enhanced */
+    .login-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1a1a1a, #0a0a0a); /* Matches dashboard background */
+    }
+
+    .login-box {
+      background-color: #282828; /* Slightly lighter box */
+      padding: 40px;
+      border-radius: 12px; /* More rounded corners */
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5); /* Stronger, deeper shadow */
+      text-align: center;
+      width: 100%;
+      max-width: 450px; /* Slightly wider */
+      border: 1px solid #3a3a3a; /* Subtle border */
+      animation: fadeIn 0.8s ease-out; /* Fade-in animation */
+    }
+
+    .login-box h2 {
+      color: #e0e0e0;
+      margin-bottom: 30px;
+      font-size: 2.5em; /* Larger title */
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .input-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #bdbdbd; /* Lighter label color */
+      font-size: 1em;
+      font-weight: 500;
+    }
+
+    .input-group input[type="text"],
+    .input-group input[type="password"] {
+      width: calc(100% - 24px); /* Account for padding and border */
+      padding: 12px;
+      border: 1px solid #4a4a4a; /* Darker border */
+      border-radius: 8px; /* Rounded input fields */
+      background-color: #3a3a3a; /* Darker input background */
+      color: #e0e0e0;
+      font-size: 1.1em;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .input-group input[type="text"]:focus,
+    .input-group input[type="password"]:focus {
+      outline: none;
+      border-color: #00aaff; /* Highlight color on focus */
+      box-shadow: 0 0 0 3px rgba(0, 170, 255, 0.3); /* Glow effect */
+    }
+
+    .login-box button {
+      background-color: #007bff;
+      color: white;
+      padding: 14px 25px;
+      border: none;
+      border-radius: 8px; /* Rounded button */
+      cursor: pointer;
+      font-size: 1.2em; /* Larger button text */
+      font-weight: 600;
+      transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+      width: 100%;
+      margin-top: 20px;
+      box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+    }
+
+    .login-box button:hover:not(:disabled) {
+      background-color: #0056b3;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0, 123, 255, 0.4);
+    }
+
+    .login-box button:disabled {
+      background-color: #6c757d;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .error-message {
+      color: #ff6b6b; /* Softer red for errors */
+      margin-bottom: 15px;
+      font-size: 0.95em;
+      font-weight: 500;
+      background-color: rgba(255, 107, 107, 0.1);
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ff6b6b;
+    }
+
+    /* Keyframe for fade-in animation */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .dashboard-header {
+        flex-direction: column;
+        text-align: center;
+        padding: 15px 20px;
+      }
+      .header-left {
+        flex-direction: column;
+        gap: 10px;
+      }
+      .dashboard-nav {
+        width: 100%;
+        justify-content: center;
+        margin-top: 15px;
+      }
+      .dashboard-nav button, .logout-button {
+        width: auto;
+        flex-grow: 1;
+      }
+      .dashboard-header h1 {
+        font-size: 1.8em;
+      }
+      .dashboard-content {
+        padding: 20px 15px;
+      }
+      .login-box {
+        padding: 30px;
+        margin: 0 20px;
+      }
+      .login-box h2 {
+        font-size: 2em;
+      }
+    }
+
+    /* General component styles for consistency */
+    h2, h3 {
+      color: #e0e0e0;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    /* Styles for forms, tables, and buttons within manager components */
+    .manager-section {
+      padding: 20px;
+      background-color: #282828;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      margin-bottom: 30px;
+    }
+
+    .manager-form input[type="text"],
+    .manager-form textarea,
+    .manager-form select,
+    .manager-form input[type="file"] {
+      width: calc(100% - 24px);
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #4a4a4a;
+      border-radius: 8px;
+      background-color: #3a3a3a;
+      color: #e0e0e0;
+      font-size: 1em;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .manager-form input[type="text"]:focus,
+    .manager-form textarea:focus,
+    .manager-form select:focus,
+    .manager-form input[type="file"]:focus {
+      outline: none;
+      border-color: #00aaff;
+      box-shadow: 0 0 0 3px rgba(0, 170, 255, 0.3);
+    }
+
+    .manager-form button {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 1em;
+      font-weight: 600;
+      transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+      margin-right: 10px;
+    }
+
+    .manager-form button.primary {
+      background-color: #007bff;
+      color: white;
+    }
+
+    .manager-form button.primary:hover:not(:disabled) {
+      background-color: #0056b3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+    }
+
+    .manager-form button.cancel {
+      background-color: #6c757d;
+      color: white;
+    }
+
+    .manager-form button.cancel:hover:not(:disabled) {
+      background-color: #5a6268;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(108, 117, 125, 0.3);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate; /* Use separate to allow border-radius on cells */
+      border-spacing: 0;
+      border-radius: 10px;
+      overflow: hidden; /* Ensures border-radius is applied */
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    th, td {
+      padding: 15px;
+      text-align: left;
+      border-bottom: 1px solid #3a3a3a;
+    }
+
+    th {
+      background-color: #333;
+      color: #e0e0e0;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.9em;
+    }
+
+    tr:nth-child(even) {
+      background-color: #222; /* Slightly different background for even rows */
+    }
+
+    tr:nth-child(odd) {
+      background-color: #282828;
+    }
+
+    tr:hover {
+      background-color: #3a3a3a; /* Highlight row on hover */
+      transition: background-color 0.2s ease;
+    }
+
+    /* Specific button styles for table actions */
+    .table-action-button {
+      padding: 8px 12px;
+      border-radius: 5px;
+      font-size: 0.9em;
+      font-weight: 500;
+      margin-right: 8px;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    .table-action-button.edit {
+      background-color: #ffc107;
+      color: #333;
+      border: none;
+    }
+
+    .table-action-button.edit:hover {
+      background-color: #e0a800;
+      transform: translateY(-1px);
+    }
+
+    .table-action-button.delete {
+      background-color: #dc3545;
+      color: white;
+      border: none;
+    }
+
+    .table-action-button.delete:hover {
+      background-color: #c82333;
+      transform: translateY(-1px);
+    }
+
+    /* Image previews in tables */
+    .table-image-preview {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #555;
+    }
+
+    /* Notification messages */
+    .notification-success {
+      background-color: #28a745;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .notification-error {
+      background-color: #dc3545;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    /* Ensure dashboard nav buttons wrap to a new line if they overflow */
+    .dashboard-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
