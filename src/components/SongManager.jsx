@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { API_BASE_URL } from '../config';
-import { analyzeAudioWithEssentia } from '../utils/essentiaAnalysis';
-import { analyzeAudioFile } from '../utils/audioAnalysis';
 
 
 const LAST_BATCH_KEY = 'varaAdminLastBatchId';
@@ -17,6 +15,8 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
   const [allBatches, setAllBatches] = useState([]);
   const [batchApiEnabled, setBatchApiEnabled] = useState(true); // keep graceful handling
   const [loading, setLoading] = useState(true);
+  const [showSongsList, setShowSongsList] = useState(false);
+  const [songsLoaded, setSongsLoaded] = useState(false);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0); // upload progress for new song creation
@@ -62,9 +62,6 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
   // Role detection (prop-first; falls back to internal fetch if needed)
   const [adminRole, setAdminRole] = useState(adminRoleProp || null);
   const isEditor = (adminRoleProp ? adminRoleProp === 'editor' : adminRole === 'editor');
-  const [isAnalyzingAudio, setIsAnalyzingAudio] = useState(false);
-  const [audioAnalysisResult, setAudioAnalysisResult] = useState(null);
-  const audioAnalysisSeqRef = useRef(0);
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -72,6 +69,88 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
   };
 
   // --- DATA FETCHING ---
+  // Fetch only dropdown data (genres, subGenres, instruments, moods, batches) - NOT songs
+  const fetchDropdownData = useCallback(async () => {
+    if (!adminToken) {
+      setError('Authentication token missing. Please log in.');
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const nocache = `admin_nocache=${Date.now()}`;
+      const [genresRes, subGenresRes, instrumentsRes, moodsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/genres?${nocache}`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
+        fetch(`${API_BASE_URL}/api/subgenres?${nocache}`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
+        fetch(`${API_BASE_URL}/api/instruments?${nocache}`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
+        fetch(`${API_BASE_URL}/api/moods?${nocache}`, { headers: { 'Authorization': `Bearer ${adminToken}` } }),
+      ]);
+
+      if (!genresRes.ok) throw new Error('Failed to fetch genres.');
+      if (!subGenresRes.ok) throw new Error('Failed to fetch sub-genres.');
+      if (!instrumentsRes.ok) throw new Error('Failed to fetch instruments.');
+      if (!moodsRes.ok) throw new Error('Failed to fetch moods.');
+
+      const [genresData, subGenresData, instrumentsData, moodsData] = await Promise.all([
+        genresRes.json(), subGenresRes.json(), instrumentsRes.json(), moodsRes.json()
+      ]);
+
+      // Fetch batches separately so we can handle 404 gracefully
+      let batchesData = [];
+      try {
+        const batchesRes = await fetch(`${API_BASE_URL}/api/batches?${nocache}`, {
+          headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+        if (batchesRes.status === 404) {
+          setBatchApiEnabled(false);
+          batchesData = [];
+        } else if (!batchesRes.ok) {
+          throw new Error('Failed to fetch batches.');
+        } else {
+          batchesData = await batchesRes.json();
+          setBatchApiEnabled(true);
+        }
+      } catch (bErr) {
+        console.warn('Batches fetch failed or unavailable:', bErr?.message || bErr);
+        if (bErr?.message?.includes('Failed to fetch batches')) {
+          setBatchApiEnabled(false);
+        }
+        batchesData = [];
+      }
+
+      setAllGenres(Array.isArray(genresData) ? genresData : []);
+      setAllSubGenres(Array.isArray(subGenresData) ? subGenresData : []);
+      setAllInstruments(Array.isArray(instrumentsData) ? instrumentsData : []);
+      setAllMoods(Array.isArray(moodsData) ? moodsData : []);
+      setAllBatches(Array.isArray(batchesData) ? batchesData : []);
+    } catch (err) {
+      console.error("Failed to fetch dropdown data:", err);
+      setError(err.message);
+      showNotification(err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [adminToken, genreUpdateKey]);
+
+  // Fetch only songs (called when user clicks "Show Songs")
+  const fetchSongs = useCallback(async () => {
+    if (!adminToken) return;
+    try {
+      const nocache = `admin_nocache=${Date.now()}`;
+      const songsUrl = isEditor
+        ? `${API_BASE_URL}/api/songs/mine?${nocache}`
+        : `${API_BASE_URL}/api/songs?${nocache}`;
+      const songsRes = await fetch(songsUrl, { headers: { 'Authorization': `Bearer ${adminToken}` } });
+      if (!songsRes.ok) throw new Error('Failed to fetch songs.');
+      const songsData = await songsRes.json();
+      setSongs(Array.isArray(songsData) ? songsData : []);
+      setSongsLoaded(true);
+    } catch (err) {
+      console.error("Failed to fetch songs:", err);
+      showNotification(`Error loading songs: ${err.message}`, 'error');
+    }
+  }, [adminToken, isEditor]);
+
   const fetchAllData = useCallback(async () => {
     if (!adminToken) {
       setError('Authentication token missing. Please log in.');
@@ -141,8 +220,8 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
   }, [adminToken, genreUpdateKey, isEditor]);
 
   useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
+    fetchDropdownData();
+  }, [fetchDropdownData]);
 
   const refreshBatches = async () => {
     try {
@@ -207,107 +286,6 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
           setFormData(prev => ({ ...prev, duration: Math.round(audio.duration) }));
           URL.revokeObjectURL(audioUrl);
         };
-        // NEW: trigger BPM/Key analysis
-        // Use a sequence number to avoid race conditions if the file changes quickly
-        const seq = ++audioAnalysisSeqRef.current;
-        setIsAnalyzingAudio(true);
-        setAudioAnalysisResult(null);
-
-        (async () => {
-          try {
-            let analysis = null;
-            let source = 'essentia';
-
-            const isWav =
-              file.type === 'audio/wav' ||
-              file.type === 'audio/x-wav' ||
-              /\.wav$/i.test(file.name || '');
-
-            if (isWav) {
-              // For WAV files, skip Essentia and use fallback analyzer only
-              source = 'fallback';
-              try {
-                analysis = await analyzeAudioFile(file, {
-                  maxSeconds: 75,
-                  minBpm: 60,
-                  maxBpm: 180
-                });
-              } catch (fallbackErr) {
-                console.warn('Fallback analysis for WAV failed:', fallbackErr);
-                analysis = null;
-              }
-            } else {
-              // Non-WAV: keep existing behavior (Essentia first, then fallback if needed)
-              try {
-                analysis = await analyzeAudioWithEssentia(file, { maxSeconds: 75 });
-              } catch (err) {
-                console.warn('Essentia analysis failed, falling back:', err);
-                analysis = null;
-              }
-
-              // If Essentia failed or did not produce a BPM/Key, fall back to the simpler analyzer
-              if (!analysis || (!analysis.bpm && !analysis.key)) {
-                source = 'fallback';
-                try {
-                  analysis = await analyzeAudioFile(file, {
-                    maxSeconds: 75,
-                    minBpm: 60,
-                    maxBpm: 180
-                  });
-                } catch (fallbackErr) {
-                  console.warn('Fallback analysis failed:', fallbackErr);
-                  analysis = null;
-                }
-              }
-            }
-
-            // If the user already selected another file, discard this result
-            if (audioAnalysisSeqRef.current !== seq) {
-              return;
-            }
-
-            if (analysis && (analysis.bpm || analysis.key)) {
-              const detectedBpm = analysis.bpm || '';
-              const detectedKey = analysis.key || '';
-
-              // Auto-fill form fields, but keep them editable
-              setFormData(prev => ({
-                ...prev,
-                bpm: detectedBpm || prev.bpm,
-                key: detectedKey || prev.key,
-              }));
-
-              setAudioAnalysisResult({
-                bpm: analysis.bpm || null,
-                key: analysis.key || null,
-                confidence:
-                  typeof analysis.confidence === 'number' ? analysis.confidence : 0,
-                source,
-              });
-            } else {
-              setAudioAnalysisResult({
-                bpm: null,
-                key: null,
-                confidence: 0,
-                source: 'none',
-              });
-            }
-          } catch (outerErr) {
-            console.warn('Unexpected audio analysis error:', outerErr);
-            if (audioAnalysisSeqRef.current === seq) {
-              setAudioAnalysisResult({
-                bpm: null,
-                key: null,
-                confidence: 0,
-                source: 'error',
-              });
-            }
-          } finally {
-            if (audioAnalysisSeqRef.current === seq) {
-              setIsAnalyzingAudio(false);
-            }
-          }
-        })();
       }
 
       return;
@@ -427,7 +405,7 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
       showNotification('Song uploaded successfully!', 'success');
       resetForm();
       setUploadProgress(0);
-      await fetchAllData();
+      // Do NOT reload songs - user can click "Show Songs" to see updated list
     } catch (err) {
       console.error("Failed to upload song:", err);
       showNotification(`Upload Error: ${err.message}`, 'error');
@@ -473,7 +451,9 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
       }
       showNotification('Song updated successfully!', 'success');
       resetForm();
-      await fetchAllData();
+      if (showSongsList) {
+        await fetchSongs();
+      }
     } catch (err) {
       console.error("Failed to update song:", err);
       showNotification(`Update Error: ${err.message}`, 'error');
@@ -503,7 +483,9 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
       showNotification('Song deleted successfully!', 'success');
-      await fetchAllData();
+      if (showSongsList) {
+        await fetchSongs();
+      }
     } catch (err) {
       console.error("Failed to delete song:", err);
       showNotification(`Error deleting song: ${err.message}`, 'error');
@@ -922,29 +904,6 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
             {formData.duration && (
               <div>Detected Duration: {formData.duration} seconds</div>
             )}
-            {isAnalyzingAudio && (
-              <div style={{ color: '#ffc107', marginTop: 4, fontSize: '0.9em' }}>
-                Auto-detecting BPM/Key from audio...
-              </div>
-            )}
-            {!isAnalyzingAudio && audioAnalysisResult && (
-              <div style={{ color: '#9fd3ff', marginTop: 4, fontSize: '0.9em' }}>
-                Detected
-                {audioAnalysisResult.bpm ? ` BPM: ${audioAnalysisResult.bpm}` : ''}
-                {audioAnalysisResult.key
-                  ? `${audioAnalysisResult.bpm ? ',' : ''} Key: ${audioAnalysisResult.key}`
-                  : ''}
-                {typeof audioAnalysisResult.confidence === 'number'
-                  ? ` (confidence ~${Math.round(audioAnalysisResult.confidence * 100)}%, ${
-                      audioAnalysisResult.source === 'essentia'
-                        ? 'Essentia'
-                        : audioAnalysisResult.source === 'fallback'
-                        ? 'fallback'
-                        : audioAnalysisResult.source
-                    })`
-                  : ''}
-              </div>
-            )}
           </div>
 
           {/* Submit */}
@@ -953,7 +912,9 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
           </button>
           {isSubmitting && !formData.id && (
             <div style={{ marginTop: 8, color: '#ccc', fontSize: '0.9em' }}>
-              {uploadProgress > 0 ? `Uploading audio & image: ${uploadProgress}%` : 'Starting upload...'}
+              {uploadProgress === 0 && 'Starting upload...'}
+              {uploadProgress > 0 && uploadProgress < 100 && `Uploading audio & image: ${uploadProgress}%`}
+              {uploadProgress === 100 && 'Upload complete, finalizing on server...'}
               <div style={{
                 marginTop: 4,
                 height: 6,
@@ -980,73 +941,114 @@ function SongManager({ genreUpdateKey, adminRole: adminRoleProp }) {
         </form>
       </div>
 
-      {/* --- TABLE --- */}
-      <h3>Existing Songs:</h3>
-      <div style={{ marginBottom: 15, display: 'flex', gap: 10, alignItems: 'center' }}>
-        <input type="text" placeholder="Search by Title or Song ID..." value={songSearchTerm} onChange={(e) => setSongSearchTerm(e.target.value)} style={{ padding: 8, width: 250, backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: 4 }} />
-        <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={{ padding: 8, backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: 4 }}>
-          <option value="desc">Newest First</option>
-          <option value="asc">Oldest First</option>
-        </select>
+      {/* --- SONGS LIST SECTION --- */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
+        <h3 style={{ margin: 0 }}>Existing Songs:</h3>
+        {!showSongsList ? (
+          <button
+            type="button"
+            onClick={async () => {
+              setShowSongsList(true);
+              if (!songsLoaded) {
+                await fetchSongs();
+              }
+            }}
+            style={{ padding: '8px 16px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            Show Songs
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={fetchSongs}
+              style={{ padding: '8px 16px', backgroundColor: '#17a2b8', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            >
+              Refresh Songs
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSongsList(false)}
+              style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            >
+              Hide Songs
+            </button>
+          </>
+        )}
+        {showSongsList && songsLoaded && (
+          <span style={{ color: '#aaa', fontSize: '14px' }}>({songs.length} songs loaded)</span>
+        )}
       </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            <th style={{ ...tableHeaderStyle, width: '70px', textAlign: 'center' }}>S.No</th>
-            <th style={tableHeaderStyle}>Cover</th>
-            <th style={tableHeaderStyle}>Details</th>
-            <th style={tableHeaderStyle}>Song ID</th>
-            <th style={tableHeaderStyle}>Batch</th>
-            <th style={tableHeaderStyle}>Metadata</th>
-            <th style={tableHeaderStyle}>Tags</th>
-            <th style={tableHeaderStyle}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {displayedSongs.map((song, index) => (
-            <tr key={song._id} style={{ borderBottom: '1px solid #444' }}>
-              <td style={{ ...tableCellStyle, textAlign: 'center' }}>{index + 1}</td>
-              <td style={tableCellStyle}>
-                <img
-                  src={song.imageUrl}
-                  alt={song.title}
-                  style={{ width: 60, height: 60, borderRadius: 4, objectFit: 'cover' }}
-                  onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/60x60/000/FFF?text=N/A'; }}
-                />
-              </td>
-              <td style={tableCellStyle}>
-                <div style={{ fontWeight: 'bold', color: 'white' }}>{song.title}</div>
-                <div>Duration: {song.duration}s</div>
-                <div>Collection: {song.collectionType}</div>
-              </td>
-              <td style={tableCellStyle}>
-                {song.externalSongId || '—'}
-              </td>
-              <td style={tableCellStyle}>
-                {song.batch && song.batch.name ? song.batch.name : '—'}
-              </td>
-              <td style={tableCellStyle}>
-                <div><strong>BPM:</strong> {song.bpm || 'N/A'}</div>
-                <div><strong>Key:</strong> {song.key || 'N/A'}</div>
-                <div><strong>Vocals:</strong> {song.hasVocals ? 'Yes' : 'No'}</div>
-              </td>
-              <td style={tableCellStyle}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                  {song.genres.map(g => <span key={g._id} style={genreTagStyle}>{g.name}</span>)}
-                  {song.subGenres.map(sg => <span key={sg._id} style={subTagStyle}>{sg.name}</span>)}
-                  {song.instruments && song.instruments.map(inst => (<span key={inst._id} style={instrumentTagStyle}>{inst.name}</span>))}
-                  {song.moods && song.moods.map(m => (<span key={m._id} style={moodTagStyle}>{m.name}</span>))}
-                </div>
-              </td>
-              <td style={tableCellStyle}>
-                <button onClick={() => handleEditClick(song)} style={editButtonStyle}>Edit</button>
-                <button onClick={() => handleDeleteSong(song._id, song.title)} style={deleteButtonStyle}>Delete</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {showSongsList && (
+        <>
+          <div style={{ marginBottom: 15, display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input type="text" placeholder="Search by Title or Song ID..." value={songSearchTerm} onChange={(e) => setSongSearchTerm(e.target.value)} style={{ padding: 8, width: 250, backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: 4 }} />
+            <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={{ padding: 8, backgroundColor: '#555', color: 'white', border: '1px solid #666', borderRadius: 4 }}>
+              <option value="desc">Newest First</option>
+              <option value="asc">Oldest First</option>
+            </select>
+          </div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={{ ...tableHeaderStyle, width: '70px', textAlign: 'center' }}>S.No</th>
+                <th style={tableHeaderStyle}>Cover</th>
+                <th style={tableHeaderStyle}>Details</th>
+                <th style={tableHeaderStyle}>Song ID</th>
+                <th style={tableHeaderStyle}>Batch</th>
+                <th style={tableHeaderStyle}>Metadata</th>
+                <th style={tableHeaderStyle}>Tags</th>
+                <th style={tableHeaderStyle}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayedSongs.map((song, index) => (
+                <tr key={song._id} style={{ borderBottom: '1px solid #444' }}>
+                  <td style={{ ...tableCellStyle, textAlign: 'center' }}>{index + 1}</td>
+                  <td style={tableCellStyle}>
+                    <img
+                      src={song.imageUrl}
+                      alt={song.title}
+                      style={{ width: 60, height: 60, borderRadius: 4, objectFit: 'cover' }}
+                      onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/60x60/000/FFF?text=N/A'; }}
+                    />
+                  </td>
+                  <td style={tableCellStyle}>
+                    <div style={{ fontWeight: 'bold', color: 'white' }}>{song.title}</div>
+                    <div>Duration: {song.duration}s</div>
+                    <div>Collection: {song.collectionType}</div>
+                  </td>
+                  <td style={tableCellStyle}>
+                    {song.externalSongId || '—'}
+                  </td>
+                  <td style={tableCellStyle}>
+                    {song.batch && song.batch.name ? song.batch.name : '—'}
+                  </td>
+                  <td style={tableCellStyle}>
+                    <div><strong>BPM:</strong> {song.bpm || 'N/A'}</div>
+                    <div><strong>Key:</strong> {song.key || 'N/A'}</div>
+                    <div><strong>Vocals:</strong> {song.hasVocals ? 'Yes' : 'No'}</div>
+                  </td>
+                  <td style={tableCellStyle}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                      {song.genres.map(g => <span key={g._id} style={genreTagStyle}>{g.name}</span>)}
+                      {song.subGenres.map(sg => <span key={sg._id} style={subTagStyle}>{sg.name}</span>)}
+                      {song.instruments && song.instruments.map(inst => (<span key={inst._id} style={instrumentTagStyle}>{inst.name}</span>))}
+                      {song.moods && song.moods.map(m => (<span key={m._id} style={moodTagStyle}>{m.name}</span>))}
+                    </div>
+                  </td>
+                  <td style={tableCellStyle}>
+                    <button onClick={() => handleEditClick(song)} style={editButtonStyle}>Edit</button>
+                    <button onClick={() => handleDeleteSong(song._id, song.title)} style={deleteButtonStyle}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
     </div>
   );
 }
