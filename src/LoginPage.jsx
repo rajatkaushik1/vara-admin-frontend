@@ -25,7 +25,8 @@
               const data = await response.json();
 
               if (!response.ok) {
-                throw new Error(data.error || 'Login failed');
+                const message = data.error || data.message || 'Login failed';
+                throw new Error(message);
               }
 
               onLoginSuccess(data.token); // Pass the token to the parent App component
